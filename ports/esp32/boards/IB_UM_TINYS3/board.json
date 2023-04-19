@@ -1,0 +1,22 @@
+{
+    "deploy": [
+        "deploy.md"
+    ],
+    "docs": "",
+    "features": [
+        "SPIRAM",
+        "USB-C",
+        "WiFi",
+        "BLE"
+    ],
+    "features_non_filterable": [
+    ],
+    "id": "titan",
+    "images": [
+    ],
+    "mcu": "esp32s3",
+    "product": "TITAN",
+    "thumbnail": "",
+    "url": "https://titansports.io",
+    "vendor": "TITANSPORTS"
+}

@@ -1,0 +1,26 @@
+
+modesp32.h
+#define RTC_IS_VALID_EXT_PIN(pin_id) 1
+
+
+machine_uart.c
+    // Attempts to use UART0 from Python has resulted in all sorts of fun errors.
+    // FIXME: UART0 is disabled for now.
+    if (uart_num == UART_NUM_0) {
+        #ifndef micropy_ib_sx_mods
+            mp_raise_msg_varg(&mp_type_valueerror, mp_error_text("uart(%d) is disabled (dedicated to repl)"), uart_num);
+        #endif
+    }
+
+main.c
+    #if CONFIG_USB_ENABLED
+    usb_init();
+    #ifdef MICROPY_IB_SX_MODS
+        uart_init();
+    #endif
+    #else
+    uart_init();
+    #endif
+
+
+
