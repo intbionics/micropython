@@ -36,7 +36,7 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-titan-N16.csv"
 #investigate disabling second core to save power
 #CONFIG_FREERTOS_UNICORE=y
 
-CONFIG_LWIP_LOCAL_HOSTNAME="TITAN"
+CONFIG_LWIP_LOCAL_HOSTNAME="TITAN_TEST"
 
 #RTC
 #https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/kconfig.html#config-rtc-clk-src
@@ -74,8 +74,9 @@ CONFIG_BT_NIMBLE_MAX_CONNECTIONS=8
 #CONFIG_BTDM_CONTROLLER_BLE_MAX_CONN_EFF=9
 
 # AES
-CONFIG_MBEDTLS_HARDWARE_AES=y
-CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
+#CONFIG_MBEDTLS_HARDWARE_AES=y
+#CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC=n
+#CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
 
 #WATCHDOG
 #https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/wdts.html?highlight=panic
