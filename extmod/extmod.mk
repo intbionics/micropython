@@ -32,6 +32,7 @@ SRC_EXTMOD_C += \
 	extmod/modusocket.c \
 	extmod/modussl_axtls.c \
 	extmod/modussl_mbedtls.c \
+	extmod/modutime.c \
 	extmod/modutimeq.c \
 	extmod/moduwebsocket.c \
 	extmod/moduzlib.c \
@@ -41,7 +42,6 @@ SRC_EXTMOD_C += \
 	extmod/network_ninaw10.c \
 	extmod/network_wiznet5k.c \
 	extmod/uos_dupterm.c \
-	extmod/utime_mphal.c \
 	extmod/vfs.c \
 	extmod/vfs_blockdev.c \
 	extmod/vfs_fat.c \
@@ -172,7 +172,6 @@ SRC_THIRDPARTY_C += $(addprefix $(MBEDTLS_DIR)/library/,\
 	md4.c \
 	md5.c \
 	md.c \
-	md_wrap.c \
 	oid.c \
 	padlock.c \
 	pem.c \
@@ -197,9 +196,11 @@ SRC_THIRDPARTY_C += $(addprefix $(MBEDTLS_DIR)/library/,\
 	ssl_cli.c \
 	ssl_cookie.c \
 	ssl_srv.c \
+	ssl_msg.c \
 	ssl_ticket.c \
 	ssl_tls.c \
 	timing.c \
+	constant_time.c \
 	x509.c \
 	x509_create.c \
 	x509_crl.c \
