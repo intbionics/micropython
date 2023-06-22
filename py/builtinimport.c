@@ -45,15 +45,6 @@
 #define DEBUG_printf(...) (void)0
 #endif
 
-#if MICROPY_MODULE_WEAK_LINKS
-STATIC qstr make_weak_link_name(vstr_t *buffer, qstr name) {
-    vstr_reset(buffer);
-    vstr_add_char(buffer, 'u');
-    vstr_add_str(buffer, qstr_str(name));
-    return qstr_from_strn(buffer->buf, buffer->len);
-}
-#endif
-
 #if MICROPY_ENABLE_EXTERNAL_IMPORT
 
 // Must be a string of one byte.
@@ -127,7 +118,7 @@ STATIC mp_import_stat_t stat_top_level(qstr mod_name, vstr_t *dest) {
     #if MICROPY_PY_SYS
     size_t path_num;
     mp_obj_t *path_items;
-    mp_obj_list_get(mp_sys_path, &path_num, &path_items);
+    mp_obj_get_array(mp_sys_path, &path_num, &path_items);
 
     // go through each sys.path entry, trying to import "<entry>/<mod_name>".
     for (size_t i = 0; i < path_num; i++) {
@@ -184,28 +175,23 @@ STATIC void do_execute_raw_code(const mp_module_context_t *context, const mp_raw
     mp_obj_dict_t *mod_globals = context->module.globals;
 
     // save context
-    mp_obj_dict_t *volatile old_globals = mp_globals_get();
-    mp_obj_dict_t *volatile old_locals = mp_locals_get();
+    nlr_jump_callback_node_globals_locals_t ctx;
+    ctx.globals = mp_globals_get();
+    ctx.locals = mp_locals_get();
 
     // set new context
     mp_globals_set(mod_globals);
     mp_locals_set(mod_globals);
 
-    nlr_buf_t nlr;
-    if (nlr_push(&nlr) == 0) {
-        mp_obj_t module_fun = mp_make_function_from_raw_code(rc, context, NULL);
-        mp_call_function_0(module_fun);
+    // set exception handler to restore context if an exception is raised
+    nlr_push_jump_callback(&ctx.callback, mp_globals_locals_set_from_nlr_jump_callback);
 
-        // finish nlr block, restore context
-        nlr_pop();
-        mp_globals_set(old_globals);
-        mp_locals_set(old_locals);
-    } else {
-        // exception; restore context and re-raise same exception
-        mp_globals_set(old_globals);
-        mp_locals_set(old_locals);
-        nlr_jump(nlr.ret_val);
-    }
+    // make and execute the function
+    mp_obj_t module_fun = mp_make_function_from_raw_code(rc, context, NULL);
+    mp_call_function_0(module_fun);
+
+    // deregister exception handler and restore context
+    nlr_pop_jump_callback(true);
 }
 #endif
 
@@ -351,6 +337,17 @@ STATIC void evaluate_relative_import(mp_int_t level, const char **module_name, s
     *module_name_len = new_module_name_len;
 }
 
+typedef struct _nlr_jump_callback_node_unregister_module_t {
+    nlr_jump_callback_node_t callback;
+    qstr name;
+} nlr_jump_callback_node_unregister_module_t;
+
+STATIC void unregister_module_from_nlr_jump_callback(void *ctx_in) {
+    nlr_jump_callback_node_unregister_module_t *ctx = ctx_in;
+    mp_map_t *mp_loaded_modules_map = &MP_STATE_VM(mp_loaded_modules_dict).map;
+    mp_map_lookup(mp_loaded_modules_map, MP_OBJ_NEW_QSTR(ctx->name), MP_MAP_LOOKUP_REMOVE_IF_FOUND);
+}
+
 // Load a module at the specified absolute path, possibly as a submodule of the given outer module.
 // full_mod_name:    The full absolute path up to this level (e.g. "foo.bar.baz").
 // level_mod_name:   The final component of the path (e.g. "baz").
@@ -368,7 +365,7 @@ STATIC mp_obj_t process_import_at_level(qstr full_mod_name, qstr level_mod_name,
     // which may have come from the filesystem.
     size_t path_num;
     mp_obj_t *path_items;
-    mp_obj_list_get(mp_sys_path, &path_num, &path_items);
+    mp_obj_get_array(mp_sys_path, &path_num, &path_items);
     if (path_num)
     #endif
     {
@@ -383,48 +380,29 @@ STATIC mp_obj_t process_import_at_level(qstr full_mod_name, qstr level_mod_name,
     mp_obj_t module_obj;
 
     if (outer_module_obj == MP_OBJ_NULL) {
+        // First module in the dotted-name path.
         DEBUG_printf("Searching for top-level module\n");
 
-        // An exact match of a built-in will always bypass the filesystem.
-        // Note that CPython-compatible built-ins are named e.g. utime, so this
-        // means that an exact match is only for `import utime`, so `import
-        // time` will search the filesystem and failing that hit the weak
-        // link handling below. Whereas micropython-specific built-ins like
-        // `micropython`, `pyb`, `network`, etc will match exactly and cannot
-        // be overridden by the filesystem.
-        module_obj = mp_module_get_builtin(level_mod_name);
+        // An import of a non-extensible built-in will always bypass the
+        // filesystem. e.g. `import micropython` or `import pyb`. So try and
+        // match a non-extensible built-ins first.
+        module_obj = mp_module_get_builtin(level_mod_name, false);
         if (module_obj != MP_OBJ_NULL) {
             return module_obj;
         }
 
-        #if MICROPY_PY_SYS
-        // Never allow sys to be overridden from the filesystem. If weak links
-        // are disabled, then this also provides a default weak link so that
-        // `import sys` is treated like `import usys` (and therefore bypasses
-        // the filesystem).
-        if (level_mod_name == MP_QSTR_sys) {
-            return MP_OBJ_FROM_PTR(&mp_module_sys);
-        }
-        #endif
-
-        // First module in the dotted-name; search for a directory or file
-        // relative to all the locations in sys.path.
+        // Next try the filesystem. Search for a directory or file relative to
+        // all the locations in sys.path.
         stat = stat_top_level(level_mod_name, &path);
 
-        #if MICROPY_MODULE_WEAK_LINKS
+        // If filesystem failed, now try and see if it matches an extensible
+        // built-in module.
         if (stat == MP_IMPORT_STAT_NO_EXIST) {
-            // No match on the filesystem. (And not a built-in either).
-            // If "foo" was requested, then try "ufoo" as a built-in. This
-            // allows `import time` to use built-in `utime`, unless `time`
-            // exists on the filesystem. This feature was formerly known
-            // as "weak links".
-            qstr umodule_name = make_weak_link_name(&path, level_mod_name);
-            module_obj = mp_module_get_builtin(umodule_name);
+            module_obj = mp_module_get_builtin(level_mod_name, true);
             if (module_obj != MP_OBJ_NULL) {
                 return module_obj;
             }
         }
-        #endif
     } else {
         DEBUG_printf("Searching for sub-module\n");
 
@@ -472,8 +450,13 @@ STATIC mp_obj_t process_import_at_level(qstr full_mod_name, qstr level_mod_name,
     // Module was found on the filesystem/frozen, try and load it.
     DEBUG_printf("Found path to load: %.*s\n", (int)vstr_len(&path), vstr_str(&path));
 
-    // Prepare for loading from the filesystem. Create a new shell module.
+    // Prepare for loading from the filesystem. Create a new shell module
+    // and register it in sys.modules.  Also make sure we remove it if
+    // there is any problem below.
     module_obj = mp_obj_new_module(full_mod_name);
+    nlr_jump_callback_node_unregister_module_t ctx;
+    ctx.name = full_mod_name;
+    nlr_push_jump_callback(&ctx.callback, unregister_module_from_nlr_jump_callback);
 
     #if MICROPY_MODULE_OVERRIDE_MAIN_IMPORT
     // If this module is being loaded via -m on unix, then
@@ -530,6 +513,8 @@ STATIC mp_obj_t process_import_at_level(qstr full_mod_name, qstr level_mod_name,
         // If it's a sub-module then make it available on the parent module.
         mp_store_attr(outer_module_obj, level_mod_name, module_obj);
     }
+
+    nlr_pop_jump_callback(false);
 
     return module_obj;
 }
@@ -649,25 +634,10 @@ mp_obj_t mp_builtin___import___default(size_t n_args, const mp_obj_t *args) {
 
     // Try the name directly as a built-in.
     qstr module_name_qstr = mp_obj_str_get_qstr(args[0]);
-    mp_obj_t module_obj = mp_module_get_builtin(module_name_qstr);
+    mp_obj_t module_obj = mp_module_get_builtin(module_name_qstr, false);
     if (module_obj != MP_OBJ_NULL) {
         return module_obj;
     }
-
-    #if MICROPY_MODULE_WEAK_LINKS
-    // Check if the u-prefixed name is a built-in.
-    VSTR_FIXED(umodule_path, MICROPY_ALLOC_PATH_MAX);
-    qstr umodule_name_qstr = make_weak_link_name(&umodule_path, module_name_qstr);
-    module_obj = mp_module_get_builtin(umodule_name_qstr);
-    if (module_obj != MP_OBJ_NULL) {
-        return module_obj;
-    }
-    #elif MICROPY_PY_SYS
-    // Special handling to make `import sys` work even if weak links aren't enabled.
-    if (module_name_qstr == MP_QSTR_sys) {
-        return MP_OBJ_FROM_PTR(&mp_module_sys);
-    }
-    #endif
 
     // Couldn't find the module, so fail
     #if MICROPY_ERROR_REPORTING <= MICROPY_ERROR_REPORTING_TERSE
