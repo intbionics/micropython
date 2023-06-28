@@ -48,7 +48,7 @@
 
 TaskHandle_t mp_main_task_handle;
 
-STATIC uint8_t stdin_ringbuf_array[260];
+STATIC uint8_t stdin_ringbuf_array[5130]; //ssmith increase the size to accept large inputs (was 260)
 ringbuf_t stdin_ringbuf = {stdin_ringbuf_array, sizeof(stdin_ringbuf_array), 0, 0};
 
 // Check the ESP-IDF error code and raise an OSError if it's not ESP_OK.

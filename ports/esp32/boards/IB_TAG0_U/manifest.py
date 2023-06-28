@@ -1,2 +1,2 @@
-include("$(MPY_DIR)/extmod/uasyncio/manifest.py")
+include("$(MPY_DIR)/extmod/asyncio")
 freeze("/home/ssmith/upyesp32s/modules")
