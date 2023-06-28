@@ -127,6 +127,10 @@
 #define MICROPY_PY_MACHINE_PWM_INCLUDEFILE  "ports/samd/machine_pwm.c"
 #endif
 #define MICROPY_PY_MACHINE_PIN_MAKE_NEW     mp_pin_make_new
+#define MICROPY_PY_MACHINE_DHT_READINTO     (1)
+#define MICROPY_PY_ONEWIRE                  (1)
+#define MICROPY_PY_PLATFORM                 (1)
+#define MICROPY_PLATFORM_VERSION            "ASF4"
 
 #define MP_STATE_PORT MP_STATE_VM
 
