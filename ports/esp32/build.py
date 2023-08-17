@@ -28,7 +28,7 @@ args = parser.parse_args()
 def build_board(board):
     os.system('make BOARD={} USER_C_MODULES={}'.format(
                 board,
-                '/home/ssmith/upyesp32s/c_modules/micropython.cmake',
+                '/home/ssmith/upyesp32s/c_modules/esp32s3.cmake',
             )
     )
     #os.system('make BOARD='+board)
