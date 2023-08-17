@@ -616,6 +616,11 @@
 #define MICROPY_GC_SPLIT_HEAP (0)
 #endif
 
+// Whether regions should be added/removed from the split heap as needed.
+#ifndef MICROPY_GC_SPLIT_HEAP_AUTO
+#define MICROPY_GC_SPLIT_HEAP_AUTO (0)
+#endif
+
 // Hook to run code during time consuming garbage collector operations
 // *i* is the loop index variable (e.g. can be used to run every x loops)
 #ifndef MICROPY_GC_HOOK_LOOP
@@ -1485,9 +1490,14 @@ typedef double mp_float_t;
 #define MICROPY_PY_ERRNO_ERRORCODE (1)
 #endif
 
-// Whether to provide "select" module (baremetal implementation)
+// Whether to provide "select" module
 #ifndef MICROPY_PY_SELECT
 #define MICROPY_PY_SELECT (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EXTRA_FEATURES)
+#endif
+
+// Whether to enable POSIX optimisations in the "select" module (requires system poll)
+#ifndef MICROPY_PY_SELECT_POSIX_OPTIMISATIONS
+#define MICROPY_PY_SELECT_POSIX_OPTIMISATIONS (0)
 #endif
 
 // Whether to enable the select() function in the "select" module (baremetal
@@ -1555,8 +1565,14 @@ typedef double mp_float_t;
 #define MICROPY_PY_UCTYPES_NATIVE_C_TYPES (1)
 #endif
 
-#ifndef MICROPY_PY_ZLIB
-#define MICROPY_PY_ZLIB (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EXTRA_FEATURES)
+// Whether to provide "deflate" module (decompression-only by default)
+#ifndef MICROPY_PY_DEFLATE
+#define MICROPY_PY_DEFLATE (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EXTRA_FEATURES)
+#endif
+
+// Whether to provide compression support in "deflate" module
+#ifndef MICROPY_PY_DEFLATE_COMPRESS
+#define MICROPY_PY_DEFLATE_COMPRESS (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_FULL_FEATURES)
 #endif
 
 #ifndef MICROPY_PY_JSON
@@ -1633,7 +1649,7 @@ typedef double mp_float_t;
 #define MICROPY_PY_BINASCII (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EXTRA_FEATURES)
 #endif
 
-// Depends on MICROPY_PY_ZLIB
+// Depends on MICROPY_PY_DEFLATE
 #ifndef MICROPY_PY_BINASCII_CRC32
 #define MICROPY_PY_BINASCII_CRC32 (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EXTRA_FEATURES)
 #endif
@@ -1718,6 +1734,11 @@ typedef double mp_float_t;
 // Whether to provide the low-level "_onewire" module
 #ifndef MICROPY_PY_ONEWIRE
 #define MICROPY_PY_ONEWIRE (0)
+#endif
+
+// Whether to provide the "platform" module
+#ifndef MICROPY_PY_PLATFORM
+#define MICROPY_PY_PLATFORM (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EXTRA_FEATURES)
 #endif
 
 /*****************************************************************************/
@@ -1878,6 +1899,16 @@ typedef double mp_float_t;
 
 #ifndef MP_PLAT_FREE_EXEC
 #define MP_PLAT_FREE_EXEC(ptr, size) m_del(byte, ptr, size)
+#endif
+
+// Allocating new heap area at runtime requires port to be able to allocate from system heap
+#if MICROPY_GC_SPLIT_HEAP_AUTO
+#ifndef MP_PLAT_ALLOC_HEAP
+#define MP_PLAT_ALLOC_HEAP(size) malloc(size)
+#endif
+#ifndef MP_PLAT_FREE_HEAP
+#define MP_PLAT_FREE_HEAP(ptr) free(ptr)
+#endif
 #endif
 
 // This macro is used to do all output (except when MICROPY_PY_IO is defined)

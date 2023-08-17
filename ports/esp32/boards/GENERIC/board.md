@@ -1,3 +1,9 @@
-The following files are daily firmware for ESP32-based boards without external SPIRAM.
+The following files are firmware that should work on most ESP32-based boards
+with 4MiB of flash, including WROOM WROVER, SOLO, PICO, and MINI modules.
 
-This firmware is compiled using ESP-IDF v4.x. Some older releases are also provided that are compiled with ESP-IDF v3.x.
+If your board is based on a WROVER module, or otherwise has SPIRAM (also known
+as PSRAM), then use the "spiram" variant.
+
+The "d2wd" variant is for ESP32-D2WD chips (with 2MiB flash), and "unicore" is
+for single-core ESP32 chips (e.g. the "SOLO" modules). The "ota" variant sets
+up the partition table to allow for Over-the-Air updates.

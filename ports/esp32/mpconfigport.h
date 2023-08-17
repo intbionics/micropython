@@ -68,6 +68,9 @@
 #define MICROPY_PY_THREAD_GIL               (1)
 #define MICROPY_PY_THREAD_GIL_VM_DIVISOR    (32)
 
+#define MICROPY_GC_SPLIT_HEAP               (1)
+#define MICROPY_GC_SPLIT_HEAP_AUTO          (1)
+
 // extended modules
 #ifndef MICROPY_ESPNOW
 #define MICROPY_ESPNOW                      (1)
@@ -140,7 +143,6 @@
 #define MICROPY_PY_WEBSOCKET                (1)
 #define MICROPY_PY_WEBREPL                  (1)
 #define MICROPY_PY_ONEWIRE                  (1)
-#define MICROPY_PY_PLATFORM                 (1)
 #define MICROPY_PY_SOCKET_EVENTS            (MICROPY_PY_WEBREPL)
 #define MICROPY_PY_BLUETOOTH_RANDOM_ADDR    (1)
 #define MICROPY_PY_BLUETOOTH_DEFAULT_GAP_NAME ("ESP32")
@@ -226,6 +228,10 @@ typedef long mp_off_t;
 
 #ifndef MICROPY_HW_ENABLE_MDNS_RESPONDER
 #define MICROPY_HW_ENABLE_MDNS_RESPONDER    (1)
+#endif
+
+#ifndef MICROPY_BOARD_ENTER_BOOTLOADER
+#define MICROPY_BOARD_ENTER_BOOTLOADER(nargs, args)
 #endif
 
 #ifndef MICROPY_BOARD_STARTUP
