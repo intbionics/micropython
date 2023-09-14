@@ -5,7 +5,8 @@ if len(sys.argv) == 1:
     print('''
 BUILD.PY
 python build.py -p ~/upyesp32s --boards IB_GPS0
-python build.py -p ~/upyesp32s --boards IB_GPS0 -c -m \"hello world\"
+python build.py -p ~/upyesp32s --boards IB_GPS0 -c -dev -m \\"hello world\\"
+python build.py -p ~/upyesp32s --boards IB_GPS0 -c -live -m \\"hello world\\"
 ''')
     exit()
 
