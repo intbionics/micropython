@@ -18,8 +18,6 @@ CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 #Enable dynamic frequency scaling (DFS) at startup
 #https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/kconfig.html?highlight=config_pm_dfs_init_auto
 CONFIG_PM_DFS_INIT_AUTO=y
-CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
-CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP=100
 
 #set freq to 240Mhz
 CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ=240
@@ -59,13 +57,6 @@ CONFIG_TINYUSB_DESC_SERIAL_STRING="IBT3XXXXXX"
 CONFIG_BT_NIMBLE_MAX_CONNECTIONS=8
 #CONFIG_BTDM_CONTROLLER_BLE_MAX_CONN=9
 #CONFIG_BTDM_CONTROLLER_BLE_MAX_CONN_EFF=9
-#
-# BLE low power settings
-# https://esp32.com/viewtopic.php?t=30302
-# https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/kconfig.html
-CONFIG_BT_CTRL_MODEM_SLEEP=y
-CONFIG_BT_CTRL_MODEM_SLEEP_MODE_1=y
-CONFIG_BT_CTRL_LOW_POWER_CLOCK=BT_CTRL_LPCLK_SEL_EXT_32K_XTAL
 
 #WATCHDOG
 #https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/wdts.html?highlight=panic
