@@ -1,6 +1,6 @@
 
 #CONFIG OPTIONS
-#https://docs.espressif.com/projects/esp-idf/en/latest/esp32s2/api-reference/kconfig.html#sdk-tool-configuration
+#https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/kconfig.html#sdk-tool-configuration
 
 CONFIG_FLASHMODE_QIO=y
 CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
@@ -15,9 +15,17 @@ CONFIG_ESPTOOLPY_FLASHSIZE_4MB=
 CONFIG_ESPTOOLPY_FLASHSIZE_8MB=
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 
+#eg
+#https://github.com/hhuysqt/esp32s3-keyboard/blob/master/sdkconfig.defaults
+
+# Low power modes
 #Enable dynamic frequency scaling (DFS) at startup
 #https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/kconfig.html?highlight=config_pm_dfs_init_auto
 CONFIG_PM_DFS_INIT_AUTO=y
+CONFIG_PM_ENABLE=y
+CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
+CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP=2
+#CONFIG_FREERTOS_UNICORE=y
 
 #set freq to 240Mhz
 CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ=240
@@ -32,9 +40,6 @@ CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-titan-N16.csv"
 
-
-#investigate disabling second core to save power
-#CONFIG_FREERTOS_UNICORE=y
 
 CONFIG_LWIP_LOCAL_HOSTNAME="TITAN"
 
@@ -57,6 +62,18 @@ CONFIG_TINYUSB_DESC_SERIAL_STRING="IBT3XXXXXX"
 CONFIG_BT_NIMBLE_MAX_CONNECTIONS=8
 #CONFIG_BTDM_CONTROLLER_BLE_MAX_CONN=9
 #CONFIG_BTDM_CONTROLLER_BLE_MAX_CONN_EFF=9
+#CONFIG_BT_NIMBLE_PINNED_TO_CORE_0=y
+#CONFIG_BT_NIMBLE_PINNED_TO_CORE_1=n
+#CONFIG_BT_NIMBLE_PINNED_TO_CORE=0
+#
+# BLE low power settings
+# https://esp32.com/viewtopic.php?t=30302
+# https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/kconfig.html
+# low power esp32s3 keyboard, https://github.com/hhuysqt/esp32s3-keyboard/tree/master
+CONFIG_BT_CTRL_MODEM_SLEEP=y
+CONFIG_BT_CTRL_MODEM_SLEEP_MODE_1=y
+CONFIG_BT_CTRL_LPCLK_SEL_EXT_32K_XTAL=y
+
 
 #WATCHDOG
 #https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/wdts.html?highlight=panic
