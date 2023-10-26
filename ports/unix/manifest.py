@@ -1,3 +1,5 @@
 include("$(MPY_DIR)/extmod/asyncio")
-#freeze("/home/ssmith/upyesp32s/upyesp32s/ubx")
-#freeze("/home/ssmith/upyesp32s/upyesp32s/encoderdecoder")
+# freeze("/home/ssmith/upyesp32s/modules")
+# freeze("/home/ssmith/upyesp32s/upyesp32s/ubx")
+freeze("/home/ssmith/upyesp32s/upyesp32s/imu")
+freeze("/home/ssmith/upyesp32s/upyesp32s/encoderdecoder")
