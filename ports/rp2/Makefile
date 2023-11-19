@@ -8,16 +8,25 @@ ifdef BOARD_DIR
 # the path as the board name.
 BOARD ?= $(notdir $(BOARD_DIR:/=))
 else
-# If not given on the command line, then default to PICO.
-BOARD ?= PICO
+# If not given on the command line, then default to RPI_PICO.
+BOARD ?= RPI_PICO
 BOARD_DIR ?= boards/$(BOARD)
 endif
 
 ifeq ($(wildcard $(BOARD_DIR)/.),)
+ifeq ($(findstring boards/PICO,$(BOARD_DIR)),boards/PICO)
+$(warning The PICO* boards have been renamed to RPI_PICO*)
+endif
 $(error Invalid BOARD specified: $(BOARD_DIR))
 endif
- 
+
+# If the build directory is not given, make it reflect the board name (and
+# optionally the board variant).
+ifneq ($(BOARD_VARIANT),)
+BUILD ?= build-$(BOARD)-$(BOARD_VARIANT)
+else
 BUILD ?= build-$(BOARD)
+endif
 
 $(VERBOSE)MAKESILENT = -s
 
@@ -37,6 +46,10 @@ endif
 
 ifdef BOARD_VARIANT
 CMAKE_ARGS += -DMICROPY_BOARD_VARIANT=$(BOARD_VARIANT)
+endif
+
+ifdef MICROPY_PREVIEW_VERSION_2
+CMAKE_ARGS += -DMICROPY_PREVIEW_VERSION_2=1
 endif
 
 HELP_BUILD_ERROR ?= "See \033[1;31mhttps://github.com/micropython/micropython/wiki/Build-Troubleshooting\033[0m"

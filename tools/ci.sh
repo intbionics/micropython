@@ -15,17 +15,16 @@ function ci_gcc_arm_setup {
 }
 
 ########################################################################################
-# code formatting
+# c code formatting
 
-function ci_code_formatting_setup {
+function ci_c_code_formatting_setup {
     sudo apt-get install uncrustify
-    pip3 install black
     uncrustify --version
-    black --version
 }
 
-function ci_code_formatting_run {
-    tools/codeformat.py -v
+function ci_c_code_formatting_run {
+    # Only run on C files. The ruff rule runs separately on Python.
+    tools/codeformat.py -v -c
 }
 
 ########################################################################################
@@ -44,7 +43,9 @@ function ci_code_spell_run {
 
 function ci_commit_formatting_run {
     git remote add upstream https://github.com/micropython/micropython.git
-    git fetch --depth=100 upstream  master
+    git fetch --depth=100 upstream master
+    # If the common ancestor commit hasn't been found, fetch more.
+    git merge-base upstream/master HEAD || git fetch --unshallow upstream master
     # For a PR, upstream/master..HEAD ends with a merge commit into master, exclude that one.
     tools/verifygitlog.py -v upstream/master..HEAD --no-merges
 }
@@ -68,6 +69,8 @@ function ci_code_size_build {
     git checkout -b pull_request # save the current location
     git remote add upstream https://github.com/micropython/micropython.git
     git fetch --depth=100 upstream master
+    # If the common ancestor commit hasn't been found, fetch more.
+    git merge-base upstream/master HEAD || git fetch --unshallow upstream master
     # build reference, save to size0
     # ignore any errors with this build, in case master is failing
     git checkout `git merge-base --fork-point upstream/master pull_request`
@@ -129,9 +132,9 @@ function ci_esp32_build {
     make ${MAKEOPTS} -C ports/esp32 \
         USER_C_MODULES=../../../examples/usercmodule/micropython.cmake \
         FROZEN_MANIFEST=$(pwd)/ports/esp32/boards/manifest_test.py
-    make ${MAKEOPTS} -C ports/esp32 BOARD=GENERIC_C3
-    make ${MAKEOPTS} -C ports/esp32 BOARD=GENERIC_S2
-    make ${MAKEOPTS} -C ports/esp32 BOARD=GENERIC_S3
+    make ${MAKEOPTS} -C ports/esp32 BOARD=ESP32_GENERIC_C3
+    make ${MAKEOPTS} -C ports/esp32 BOARD=ESP32_GENERIC_S2
+    make ${MAKEOPTS} -C ports/esp32 BOARD=ESP32_GENERIC_S3
 
     # Test building native .mpy with xtensawin architecture.
     ci_native_mpy_modules_build xtensawin
@@ -155,9 +158,9 @@ function ci_esp8266_path {
 function ci_esp8266_build {
     make ${MAKEOPTS} -C mpy-cross
     make ${MAKEOPTS} -C ports/esp8266 submodules
-    make ${MAKEOPTS} -C ports/esp8266
-    make ${MAKEOPTS} -C ports/esp8266 BOARD=GENERIC_512K
-    make ${MAKEOPTS} -C ports/esp8266 BOARD=GENERIC_1M
+    make ${MAKEOPTS} -C ports/esp8266 BOARD=ESP8266_GENERIC
+    make ${MAKEOPTS} -C ports/esp8266 BOARD=ESP8266_GENERIC BOARD_VARIANT=FLASH_512K
+    make ${MAKEOPTS} -C ports/esp8266 BOARD=ESP8266_GENERIC BOARD_VARIANT=FLASH_1M
 }
 
 ########################################################################################
@@ -204,10 +207,10 @@ function ci_nrf_build {
     ports/nrf/drivers/bluetooth/download_ble_stack.sh s140_nrf52_6_1_1
     make ${MAKEOPTS} -C mpy-cross
     make ${MAKEOPTS} -C ports/nrf submodules
-    make ${MAKEOPTS} -C ports/nrf BOARD=pca10040
-    make ${MAKEOPTS} -C ports/nrf BOARD=microbit
-    make ${MAKEOPTS} -C ports/nrf BOARD=pca10056 SD=s140
-    make ${MAKEOPTS} -C ports/nrf BOARD=pca10090
+    make ${MAKEOPTS} -C ports/nrf BOARD=PCA10040
+    make ${MAKEOPTS} -C ports/nrf BOARD=MICROBIT
+    make ${MAKEOPTS} -C ports/nrf BOARD=PCA10056 SD=s140
+    make ${MAKEOPTS} -C ports/nrf BOARD=PCA10090
 }
 
 ########################################################################################
@@ -249,6 +252,7 @@ function ci_qemu_arm_build {
 
 function ci_renesas_ra_setup {
     ci_gcc_arm_setup
+    sudo apt-get install protobuf-c-compiler
 }
 
 function ci_renesas_ra_board_build {
@@ -259,6 +263,8 @@ function ci_renesas_ra_board_build {
     make ${MAKEOPTS} -C ports/renesas-ra BOARD=EK_RA6M1
     make ${MAKEOPTS} -C ports/renesas-ra BOARD=EK_RA4M1
     make ${MAKEOPTS} -C ports/renesas-ra BOARD=EK_RA4W1
+    make ${MAKEOPTS} -C ports/renesas-ra BOARD=ARDUINO_PORTENTA_C33 submodules
+    make ${MAKEOPTS} -C ports/renesas-ra BOARD=ARDUINO_PORTENTA_C33
 }
 
 ########################################################################################
@@ -272,8 +278,8 @@ function ci_rp2_build {
     make ${MAKEOPTS} -C mpy-cross
     make ${MAKEOPTS} -C ports/rp2 submodules
     make ${MAKEOPTS} -C ports/rp2
-    make ${MAKEOPTS} -C ports/rp2 BOARD=PICO_W submodules
-    make ${MAKEOPTS} -C ports/rp2 BOARD=PICO_W USER_C_MODULES=../../examples/usercmodule/micropython.cmake
+    make ${MAKEOPTS} -C ports/rp2 BOARD=RPI_PICO_W submodules
+    make ${MAKEOPTS} -C ports/rp2 BOARD=RPI_PICO_W USER_C_MODULES=../../examples/usercmodule/micropython.cmake
     make ${MAKEOPTS} -C ports/rp2 BOARD=W5100S_EVB_PICO submodules
     make ${MAKEOPTS} -C ports/rp2 BOARD=W5100S_EVB_PICO
 
@@ -350,19 +356,6 @@ function ci_stm32_nucleo_build {
 }
 
 ########################################################################################
-# ports/teensy
-
-function ci_teensy_setup {
-    ci_gcc_arm_setup
-}
-
-function ci_teensy_build {
-    make ${MAKEOPTS} -C mpy-cross
-    make ${MAKEOPTS} -C ports/teensy submodules
-    make ${MAKEOPTS} -C ports/teensy
-}
-
-########################################################################################
 # ports/unix
 
 CI_UNIX_OPTS_SYS_SETTRACE=(
@@ -425,6 +418,7 @@ function ci_native_mpy_modules_build {
     make -C examples/natmod/features1 ARCH=$arch
     make -C examples/natmod/features2 ARCH=$arch
     make -C examples/natmod/features3 ARCH=$arch
+    make -C examples/natmod/features4 ARCH=$arch
     make -C examples/natmod/btree ARCH=$arch
     make -C examples/natmod/deflate ARCH=$arch
     make -C examples/natmod/framebuf ARCH=$arch
@@ -451,6 +445,15 @@ function ci_unix_standard_build {
 }
 
 function ci_unix_standard_run_tests {
+    ci_unix_run_tests_full_helper standard
+}
+
+function ci_unix_standard_v2_build {
+    ci_unix_build_helper VARIANT=standard MICROPY_PREVIEW_VERSION_2=1
+    ci_unix_build_ffi_lib_helper gcc
+}
+
+function ci_unix_standard_v2_run_tests {
     ci_unix_run_tests_full_helper standard
 }
 

@@ -32,9 +32,14 @@
 /*****************************************************************************/
 // Feature settings with defaults
 
-// Whether to include the stm module, with peripheral register constants
+// Whether to include the stm module
 #ifndef MICROPY_PY_STM
 #define MICROPY_PY_STM (1)
+#endif
+
+// Whether to include named register constants in the stm module
+#ifndef MICROPY_PY_STM_CONST
+#define MICROPY_PY_STM_CONST (MICROPY_PY_STM)
 #endif
 
 // Whether to include the pyb module
@@ -249,6 +254,21 @@
 
 #ifndef MICROPY_HW_USB_INTERFACE_FS_STRING
 #define MICROPY_HW_USB_INTERFACE_FS_STRING      "Pyboard Interface"
+#endif
+
+// Must be 8 bytes.
+#ifndef MICROPY_HW_USB_MSC_INQUIRY_VENDOR_STRING
+#define MICROPY_HW_USB_MSC_INQUIRY_VENDOR_STRING "MicroPy "
+#endif
+
+// Must be 16 bytes.
+#ifndef MICROPY_HW_USB_MSC_INQUIRY_PRODUCT_STRING
+#define MICROPY_HW_USB_MSC_INQUIRY_PRODUCT_STRING "pyboard Flash   "
+#endif
+
+// Must be 4 bytes.
+#ifndef MICROPY_HW_USB_MSC_INQUIRY_REVISION_STRING
+#define MICROPY_HW_USB_MSC_INQUIRY_REVISION_STRING "1.00"
 #endif
 
 // Amount of incoming buffer space for each CDC instance.
@@ -471,7 +491,11 @@
 #define MICROPY_HW_RCC_HSI_STATE (RCC_HSI_OFF)
 #define MICROPY_HW_RCC_FLAG_HSxRDY (RCC_FLAG_HSERDY)
 #if MICROPY_HW_CLK_USE_BYPASS
+#if !defined(STM32WL)
 #define MICROPY_HW_RCC_HSE_STATE (RCC_HSE_BYPASS)
+#else
+#define MICROPY_HW_RCC_HSE_STATE (RCC_HSE_BYPASS_PWR)
+#endif
 #else
 #define MICROPY_HW_RCC_HSE_STATE (RCC_HSE_ON)
 #endif
@@ -567,10 +591,10 @@
 
 // Enable I2S if there are any peripherals defined
 #if defined(MICROPY_HW_I2S1) || defined(MICROPY_HW_I2S2)
-#define MICROPY_HW_ENABLE_I2S (1)
+#define MICROPY_PY_MACHINE_I2S (1)
 #define MICROPY_HW_MAX_I2S (2)
 #else
-#define MICROPY_HW_ENABLE_I2S (0)
+#define MICROPY_PY_MACHINE_I2S (0)
 #define MICROPY_HW_MAX_I2S (0)
 #endif
 

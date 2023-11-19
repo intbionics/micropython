@@ -26,22 +26,38 @@
 #ifndef MICROPY_INCLUDED_PY_MPCONFIG_H
 #define MICROPY_INCLUDED_PY_MPCONFIG_H
 
-// Current version of MicroPython
+// Current version of MicroPython. This is used by sys.implementation.version
+// as well as a fallback to generate MICROPY_GIT_TAG if the git repo or tags
+// are unavailable.
 #define MICROPY_VERSION_MAJOR 1
-#define MICROPY_VERSION_MINOR 20
+#define MICROPY_VERSION_MINOR 22
 #define MICROPY_VERSION_MICRO 0
+#define MICROPY_VERSION_PRERELEASE 1
 
-// Combined version as a 32-bit number for convenience
-#define MICROPY_VERSION ( \
-    MICROPY_VERSION_MAJOR << 16 \
-        | MICROPY_VERSION_MINOR << 8 \
-        | MICROPY_VERSION_MICRO)
+// Combined version as a 32-bit number for convenience to allow version
+// comparison. Doesn't include prerelease state.
+// e.g. #if MICROPY_VERSION < MICROPY_MAKE_VERSION(1, 22, 0)
+#define MICROPY_MAKE_VERSION(major, minor, patch) (major << 16 | minor << 8 | patch)
+#define MICROPY_VERSION MICROPY_MAKE_VERSION(MICROPY_VERSION_MAJOR, MICROPY_VERSION_MINOR, MICROPY_VERSION_MICRO)
 
-// String version
-#define MICROPY_VERSION_STRING \
+// String version. This is only used directly for platform.platform and
+// os.uname().release. All other version info available in the firmware (e.g.
+// the REPL banner) comes from MICROPY_GIT_TAG.
+#define MICROPY_VERSION_STRING_BASE \
     MP_STRINGIFY(MICROPY_VERSION_MAJOR) "." \
     MP_STRINGIFY(MICROPY_VERSION_MINOR) "." \
     MP_STRINGIFY(MICROPY_VERSION_MICRO)
+#if MICROPY_VERSION_PRERELEASE
+#define MICROPY_VERSION_STRING MICROPY_VERSION_STRING_BASE "-preview"
+#else
+#define MICROPY_VERSION_STRING MICROPY_VERSION_STRING_BASE
+#endif
+
+// If this is enabled, then in-progress/breaking changes slated for the 2.x
+// release will be enabled.
+#ifndef MICROPY_PREVIEW_VERSION_2
+#define MICROPY_PREVIEW_VERSION_2 (0)
+#endif
 
 // This file contains default configuration settings for MicroPython.
 // You can override any of the options below using mpconfigport.h file
@@ -312,9 +328,11 @@
 #define MICROPY_PERSISTENT_CODE_LOAD (0)
 #endif
 
-// Whether to support saving of persistent code
+// Whether to support saving of persistent code, i.e. for mpy-cross to
+// generate .mpy files. Enabling this enables additional metadata on raw code
+// objects which is also required for sys.settrace.
 #ifndef MICROPY_PERSISTENT_CODE_SAVE
-#define MICROPY_PERSISTENT_CODE_SAVE (0)
+#define MICROPY_PERSISTENT_CODE_SAVE (MICROPY_PY_SYS_SETTRACE)
 #endif
 
 // Whether to support saving persistent code to a file via mp_raw_code_save_file
@@ -1134,7 +1152,7 @@ typedef double mp_float_t;
 #define MICROPY_PY_BUILTINS_RANGE_BINOP (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EVERYTHING)
 #endif
 
-// Support for callling next() with second argument
+// Support for calling next() with second argument
 #ifndef MICROPY_PY_BUILTINS_NEXT2
 #define MICROPY_PY_BUILTINS_NEXT2 (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EVERYTHING)
 #endif
@@ -1153,13 +1171,13 @@ typedef double mp_float_t;
 #define MICROPY_PY_ALL_SPECIAL_METHODS (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EXTRA_FEATURES)
 #endif
 
-// Whether to support all inplace arithmetic operarion methods
+// Whether to support all inplace arithmetic operation methods
 // (__imul__, etc.)
 #ifndef MICROPY_PY_ALL_INPLACE_SPECIAL_METHODS
 #define MICROPY_PY_ALL_INPLACE_SPECIAL_METHODS (MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EVERYTHING)
 #endif
 
-// Whether to support reverse arithmetic operarion methods
+// Whether to support reverse arithmetic operation methods
 // (__radd__, etc.). Additionally gated by
 // MICROPY_PY_ALL_SPECIAL_METHODS.
 #ifndef MICROPY_PY_REVERSE_SPECIAL_METHODS
@@ -1716,7 +1734,7 @@ typedef double mp_float_t;
 
 // Whether to add finaliser code to ssl objects
 #ifndef MICROPY_PY_SSL_FINALISER
-#define MICROPY_PY_SSL_FINALISER (0)
+#define MICROPY_PY_SSL_FINALISER (MICROPY_ENABLE_FINALISER)
 #endif
 
 #ifndef MICROPY_PY_WEBSOCKET
@@ -1816,7 +1834,11 @@ typedef double mp_float_t;
 
 // String used for the banner, and sys.version additional information
 #ifndef MICROPY_BANNER_NAME_AND_VERSION
+#if MICROPY_PREVIEW_VERSION_2
+#define MICROPY_BANNER_NAME_AND_VERSION "MicroPython (with v2.0 preview) " MICROPY_GIT_TAG " on " MICROPY_BUILD_DATE
+#else
 #define MICROPY_BANNER_NAME_AND_VERSION "MicroPython " MICROPY_GIT_TAG " on " MICROPY_BUILD_DATE
+#endif
 #endif
 
 // String used for the second part of the banner, and sys.implementation._machine
@@ -2011,16 +2033,6 @@ typedef double mp_float_t;
 #else
 #undef MP_WARN_CAT
 #define MP_WARN_CAT(x) (NULL)
-#endif
-
-// Feature dependency check.
-#if MICROPY_PY_SYS_SETTRACE
-#if !MICROPY_PERSISTENT_CODE_SAVE
-#error "MICROPY_PY_SYS_SETTRACE requires MICROPY_PERSISTENT_CODE_SAVE to be enabled"
-#endif
-#if MICROPY_COMP_CONST
-#error "MICROPY_PY_SYS_SETTRACE requires MICROPY_COMP_CONST to be disabled"
-#endif
 #endif
 
 #endif // MICROPY_INCLUDED_PY_MPCONFIG_H

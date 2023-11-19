@@ -8,17 +8,25 @@ ifdef BOARD_DIR
 # the path as the board name.
 BOARD ?= $(notdir $(BOARD_DIR:/=))
 else
-# If not given on the command line, then default to GENERIC.
-BOARD ?= GENERIC
+# If not given on the command line, then default to ESP32_GENERIC.
+BOARD ?= ESP32_GENERIC
 BOARD_DIR ?= boards/$(BOARD)
 endif
 
 ifeq ($(wildcard $(BOARD_DIR)/.),)
+ifeq ($(findstring boards/GENERIC,$(BOARD_DIR)),boards/GENERIC)
+$(warning The GENERIC* boards have been renamed to ESP32_GENERIC*)
+endif
 $(error Invalid BOARD specified: $(BOARD_DIR))
 endif
 
-# If the build directory is not given, make it reflect the board name.
+# If the build directory is not given, make it reflect the board name (and
+# optionally the board variant).
+ifneq ($(BOARD_VARIANT),)
+BUILD ?= build-$(BOARD)-$(BOARD_VARIANT)
+else
 BUILD ?= build-$(BOARD)
+endif
 
 # Device serial settings.
 PORT ?= /dev/ttyUSB0
@@ -42,6 +50,10 @@ endif
 
 ifdef BOARD_VARIANT
 	IDFPY_FLAGS += -D MICROPY_BOARD_VARIANT=$(BOARD_VARIANT)
+endif
+
+ifdef MICROPY_PREVIEW_VERSION_2
+	IDFPY_FLAGS += -D MICROPY_PREVIEW_VERSION_2=1
 endif
 
 HELP_BUILD_ERROR ?= "See \033[1;31mhttps://github.com/micropython/micropython/wiki/Build-Troubleshooting\033[0m"

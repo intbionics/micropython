@@ -55,10 +55,10 @@ function build_board {
     $MICROPY_AUTOBUILD_MAKE BOARD=$board BUILD=$build_dir && copy_artefacts $dest_dir $descr $fw_tag $build_dir $@
     rm -rf $build_dir
 
-    # Query variants from board.json and build them. Ignore the special "idf3"
+    # Query variants from board.json and build them. Ignore the special "IDF3"
     # variant for ESP32 boards (this allows the downloads page to still have
     # the idf3 files for older releases that used to be explicitly built).
-    for variant in `cat $board_json | python3 -c "import json,sys; print(' '.join(v for v in json.load(sys.stdin).get('variants', {}).keys() if v != 'idf3'))"`; do
+    for variant in `cat $board_json | python3 -c "import json,sys; print(' '.join(v for v in json.load(sys.stdin).get('variants', {}).keys() if v != 'IDF3'))"`; do
         local variant_build_dir=$build_dir-$variant
         echo "building variant $descr $board $variant"
         $MICROPY_AUTOBUILD_MAKE BOARD=$board BOARD_VARIANT=$variant BUILD=$variant_build_dir && copy_artefacts $dest_dir $descr-$variant $fw_tag $variant_build_dir $@
@@ -88,8 +88,16 @@ function build_boards {
     done
 }
 
+function build_cc3200_boards {
+    build_boards hal/cc3200_hal.c $1 $2 zip
+}
+
 function build_esp32_boards {
     build_boards modesp32.c $1 $2 bin elf map uf2 app-bin
+}
+
+function build_esp8266_boards {
+    build_boards modesp.c $1 $2 bin elf map
 }
 
 function build_mimxrt_boards {
@@ -101,7 +109,7 @@ function build_nrf_boards {
 }
 
 function build_renesas_ra_boards {
-    build_boards ra_it.c $1 $2 hex
+    build_boards ra_it.c $1 $2 bin hex
 }
 
 function build_rp2_boards {

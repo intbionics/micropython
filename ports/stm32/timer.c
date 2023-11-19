@@ -507,7 +507,7 @@ STATIC mp_int_t compute_ticks_from_dtg(uint32_t dtg) {
 }
 
 STATIC void config_deadtime(pyb_timer_obj_t *self, mp_int_t ticks, mp_int_t brk) {
-    TIM_BreakDeadTimeConfigTypeDef deadTimeConfig;
+    TIM_BreakDeadTimeConfigTypeDef deadTimeConfig = {0};
     deadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
     deadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
     deadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
@@ -605,7 +605,7 @@ STATIC void pyb_timer_print(const mp_print_t *print, mp_obj_t self_in, mp_print_
 ///   - `mode` can be one of:
 ///     - `Timer.UP` - configures the timer to count from 0 to ARR (default)
 ///     - `Timer.DOWN` - configures the timer to count from ARR down to 0.
-///     - `Timer.CENTER` - confgures the timer to count from 0 to ARR and
+///     - `Timer.CENTER` - configures the timer to count from 0 to ARR and
 ///       then back down to 0.
 ///
 ///   - `div` can be one of 1, 2, or 4. Divides the timer clock to determine
@@ -884,10 +884,11 @@ STATIC const uint32_t tim_instance_table[MICROPY_HW_MAX_TIMER] = {
     TIM_ENTRY(7, TIM7_IRQn),
     #endif
     #endif
+
     #if defined(TIM8)
     #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
     TIM_ENTRY(8, TIM8_UP_TIM13_IRQn),
-    #elif defined(STM32G4) || defined(STM32L4)
+    #else
     TIM_ENTRY(8, TIM8_UP_IRQn),
     #endif
     #endif
@@ -1198,7 +1199,7 @@ STATIC mp_obj_t pyb_timer_channel(size_t n_args, const mp_obj_t *pos_args, mp_ma
         if (!mp_obj_is_type(pin_obj, &pin_type)) {
             mp_raise_ValueError(MP_ERROR_TEXT("pin argument needs to be be a Pin type"));
         }
-        const pin_obj_t *pin = MP_OBJ_TO_PTR(pin_obj);
+        const machine_pin_obj_t *pin = MP_OBJ_TO_PTR(pin_obj);
         const pin_af_obj_t *af = pin_find_af(pin, AF_FN_TIM, self->tim_id);
         if (af == NULL) {
             mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("Pin(%q) doesn't have an alt for Timer(%d)"), pin->name, self->tim_id);

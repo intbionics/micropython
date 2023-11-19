@@ -30,6 +30,7 @@
 #include "extmod/misc.h"
 #include "shared/runtime/interrupt_char.h"
 #include "shared/timeutils/timeutils.h"
+#include "shared/tinyusb/mp_usbd.h"
 #include "tusb.h"
 #include "uart.h"
 #include "hardware/rtc.h"
@@ -38,6 +39,10 @@
 #if MICROPY_PY_NETWORK_CYW43
 #include "lib/cyw43-driver/src/cyw43.h"
 #endif
+
+// This needs to be added to the result of time_us_64() to get the number of
+// microseconds since the Epoch.
+STATIC uint64_t time_us_64_offset_from_epoch;
 
 #if MICROPY_HW_ENABLE_UART_REPL || MICROPY_HW_USB_CDC
 
@@ -48,6 +53,19 @@
 STATIC uint8_t stdin_ringbuf_array[MICROPY_HW_STDIN_BUFFER_LEN];
 ringbuf_t stdin_ringbuf = { stdin_ringbuf_array, sizeof(stdin_ringbuf_array) };
 
+#endif
+
+#if MICROPY_HW_USB_CDC
+// Explicitly run the USB stack in case the scheduler is locked (eg we are in an
+// interrupt handler) and there is in/out data pending on the USB CDC interface.
+#define MICROPY_EVENT_POLL_HOOK_WITH_USB \
+    do { \
+        MICROPY_EVENT_POLL_HOOK; \
+        mp_usbd_task(); \
+    } while (0)
+
+#else
+#define MICROPY_EVENT_POLL_HOOK_WITH_USB MICROPY_EVENT_POLL_HOOK
 #endif
 
 #if MICROPY_HW_USB_CDC
@@ -131,7 +149,7 @@ int mp_hal_stdin_rx_chr(void) {
             return dupterm_c;
         }
         #endif
-        MICROPY_EVENT_POLL_HOOK
+        MICROPY_EVENT_POLL_HOOK_WITH_USB;
     }
 }
 
@@ -151,7 +169,7 @@ void mp_hal_stdout_tx_strn(const char *str, mp_uint_t len) {
             int timeout = 0;
             // Wait with a max of USC_CDC_TIMEOUT ms
             while (n > tud_cdc_write_available() && timeout++ < MICROPY_HW_USB_CDC_TX_TIMEOUT) {
-                MICROPY_EVENT_POLL_HOOK
+                MICROPY_EVENT_POLL_HOOK_WITH_USB;
             }
             if (timeout >= MICROPY_HW_USB_CDC_TX_TIMEOUT) {
                 break;
@@ -176,11 +194,28 @@ void mp_hal_delay_ms(mp_uint_t ms) {
     }
 }
 
-uint64_t mp_hal_time_ns(void) {
+void mp_hal_time_ns_set_from_rtc(void) {
+    // Delay at least one RTC clock cycle so it's registers have updated with the most
+    // recent time settings.
+    sleep_us(23);
+
+    // Sample RTC and time_us_64() as close together as possible, so the offset
+    // calculated for the latter can be as accurate as possible.
     datetime_t t;
     rtc_get_datetime(&t);
+    uint64_t us = time_us_64();
+
+    // Calculate the difference between the RTC Epoch seconds and time_us_64().
     uint64_t s = timeutils_seconds_since_epoch(t.year, t.month, t.day, t.hour, t.min, t.sec);
-    return s * 1000000000ULL;
+    time_us_64_offset_from_epoch = (uint64_t)s * 1000000ULL - us;
+}
+
+uint64_t mp_hal_time_ns(void) {
+    // The RTC only has seconds resolution, so instead use time_us_64() to get a more
+    // precise measure of Epoch time.  Both these "clocks" are clocked from the same
+    // source so they remain synchronised, and only differ by a fixed offset (calculated
+    // in mp_hal_time_ns_set_from_rtc).
+    return (time_us_64_offset_from_epoch + time_us_64()) * 1000ULL;
 }
 
 // Generate a random locally administered MAC address (LAA)

@@ -40,6 +40,7 @@
 #include "lib/littlefs/lfs1_util.h"
 #include "lib/littlefs/lfs2.h"
 #include "lib/littlefs/lfs2_util.h"
+#include "extmod/modmachine.h"
 #include "extmod/modnetwork.h"
 #include "extmod/vfs.h"
 #include "extmod/vfs_fat.h"
@@ -86,6 +87,7 @@
 #include "servo.h"
 #include "dac.h"
 #include "can.h"
+#include "subghz.h"
 
 #if MICROPY_PY_THREAD
 STATIC pyb_thread_t pyb_thread_main;
@@ -95,7 +97,7 @@ STATIC pyb_thread_t pyb_thread_main;
 #ifndef MICROPY_HW_UART_REPL_RXBUF
 #define MICROPY_HW_UART_REPL_RXBUF (260)
 #endif
-STATIC pyb_uart_obj_t pyb_uart_repl_obj;
+STATIC machine_uart_obj_t pyb_uart_repl_obj;
 STATIC uint8_t pyb_uart_repl_rxbuf[MICROPY_HW_UART_REPL_RXBUF];
 #endif
 
@@ -403,6 +405,9 @@ void stm32_main(uint32_t reset_mode) {
     #if defined(STM32WB)
     rfcore_init();
     #endif
+    #if defined(STM32WL)
+    subghz_init();
+    #endif
     #if MICROPY_HW_SDRAM_SIZE
     sdram_init();
     bool sdram_valid = true;
@@ -427,7 +432,7 @@ void stm32_main(uint32_t reset_mode) {
 
     #if defined(MICROPY_HW_UART_REPL)
     // Set up a UART REPL using a statically allocated object
-    pyb_uart_repl_obj.base.type = &pyb_uart_type;
+    pyb_uart_repl_obj.base.type = &machine_uart_type;
     pyb_uart_repl_obj.uart_id = MICROPY_HW_UART_REPL;
     pyb_uart_repl_obj.is_static = true;
     pyb_uart_repl_obj.timeout = 0;
@@ -435,7 +440,7 @@ void stm32_main(uint32_t reset_mode) {
     uart_init(&pyb_uart_repl_obj, MICROPY_HW_UART_REPL_BAUD, UART_WORDLENGTH_8B, UART_PARITY_NONE, UART_STOPBITS_1, 0);
     uart_set_rxbuf(&pyb_uart_repl_obj, sizeof(pyb_uart_repl_rxbuf), pyb_uart_repl_rxbuf);
     uart_attach_to_repl(&pyb_uart_repl_obj, true);
-    MP_STATE_PORT(pyb_uart_obj_all)[MICROPY_HW_UART_REPL - 1] = &pyb_uart_repl_obj;
+    MP_STATE_PORT(machine_uart_obj_all)[MICROPY_HW_UART_REPL - 1] = &pyb_uart_repl_obj;
     MP_STATE_PORT(pyb_stdio_uart) = &pyb_uart_repl_obj;
     #endif
 
@@ -524,7 +529,7 @@ soft_reset:
     pyb_usb_init0();
     #endif
 
-    #if MICROPY_HW_ENABLE_I2S
+    #if MICROPY_PY_MACHINE_I2S
     machine_i2s_init0();
     #endif
 
@@ -649,6 +654,9 @@ soft_reset_exit:
 
     #if MICROPY_PY_BLUETOOTH
     mp_bluetooth_deinit();
+    #endif
+    #if defined(STM32WL)
+    subghz_deinit();
     #endif
     #if MICROPY_PY_NETWORK
     mod_network_deinit();
