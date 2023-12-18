@@ -40,7 +40,9 @@
 #define MICROPY_COMP_CONST_FOLDING_COMPILER_WORKAROUND (1)
 
 // optimisations
+#ifndef MICROPY_OPT_COMPUTED_GOTO
 #define MICROPY_OPT_COMPUTED_GOTO           (1)
+#endif
 
 // Python internal features
 #define MICROPY_READER_VFS                  (1)
@@ -96,6 +98,10 @@
 #define MICROPY_PY_OS_UNAME                 (1)
 #define MICROPY_PY_OS_URANDOM               (1)
 #define MICROPY_PY_MACHINE                  (1)
+#define MICROPY_PY_MACHINE_INCLUDEFILE      "ports/esp32/modmachine.c"
+#define MICROPY_PY_MACHINE_BARE_METAL_FUNCS (1)
+#define MICROPY_PY_MACHINE_BOOTLOADER       (1)
+#define MICROPY_PY_MACHINE_DISABLE_IRQ_ENABLE_IRQ (1)
 #define MICROPY_PY_MACHINE_ADC              (1)
 #define MICROPY_PY_MACHINE_ADC_INCLUDEFILE  "ports/esp32/machine_adc.c"
 #define MICROPY_PY_MACHINE_ADC_ATTEN_WIDTH  (1)
@@ -106,6 +112,7 @@
 #define MICROPY_PY_MACHINE_ADC_BLOCK_INCLUDEFILE "ports/esp32/machine_adc_block.c"
 #define MICROPY_PY_MACHINE_PIN_MAKE_NEW     mp_pin_make_new
 #define MICROPY_PY_MACHINE_BITSTREAM        (1)
+#define MICROPY_PY_MACHINE_DHT_READINTO     (1)
 #define MICROPY_PY_MACHINE_PULSE            (1)
 #define MICROPY_PY_MACHINE_PWM              (1)
 #define MICROPY_PY_MACHINE_PWM_DUTY         (1)
@@ -118,10 +125,10 @@
 #define MICROPY_PY_MACHINE_SPI_LSB          (1)
 #define MICROPY_PY_MACHINE_SOFTSPI          (1)
 #ifndef MICROPY_PY_MACHINE_DAC
-#define MICROPY_PY_MACHINE_DAC              (1)
+#define MICROPY_PY_MACHINE_DAC              (SOC_DAC_SUPPORTED)
 #endif
 #ifndef MICROPY_PY_MACHINE_I2S
-#define MICROPY_PY_MACHINE_I2S              (1)
+#define MICROPY_PY_MACHINE_I2S              (SOC_I2S_SUPPORTED)
 #endif
 #define MICROPY_PY_MACHINE_I2S_INCLUDEFILE  "ports/esp32/machine_i2s.c"
 #define MICROPY_PY_MACHINE_I2S_FINALISER    (1)
@@ -182,13 +189,6 @@ void *esp_native_code_commit(void *, size_t, void *);
 #define MP_PLAT_COMMIT_EXEC(buf, len, reloc) esp_native_code_commit(buf, len, reloc)
 #define MP_SSIZE_MAX (0x7fffffff)
 
-// Note: these "critical nested" macros do not ensure cross-CPU exclusion,
-// the only disable interrupts on the current CPU.  To full manage exclusion
-// one should use portENTER_CRITICAL/portEXIT_CRITICAL instead.
-#include "freertos/FreeRTOS.h"
-#define MICROPY_BEGIN_ATOMIC_SECTION() portSET_INTERRUPT_MASK_FROM_ISR()
-#define MICROPY_END_ATOMIC_SECTION(state) portCLEAR_INTERRUPT_MASK_FROM_ISR(state)
-
 #if MICROPY_PY_SOCKET_EVENTS
 #define MICROPY_PY_SOCKET_EVENTS_HANDLER extern void socket_events_handler(void); socket_events_handler();
 #else
@@ -216,7 +216,11 @@ void *esp_native_code_commit(void *, size_t, void *);
 #endif
 
 // Functions that should go in IRAM
+// For ESP32 with SPIRAM workaround, firmware is larger and uses more static IRAM,
+// so in that configuration don't put too many functions in IRAM.
+#if !(CONFIG_IDF_TARGET_ESP32 && CONFIG_SPIRAM && CONFIG_SPIRAM_CACHE_WORKAROUND)
 #define MICROPY_WRAP_MP_BINARY_OP(f) IRAM_ATTR f
+#endif
 #define MICROPY_WRAP_MP_EXECUTE_BYTECODE(f) IRAM_ATTR f
 #define MICROPY_WRAP_MP_LOAD_GLOBAL(f) IRAM_ATTR f
 #define MICROPY_WRAP_MP_LOAD_NAME(f) IRAM_ATTR f
