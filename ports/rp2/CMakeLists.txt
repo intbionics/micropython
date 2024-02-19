@@ -129,9 +129,11 @@ set(MICROPY_SOURCE_PORT
     mphalport.c
     mpnetworkport.c
     mpthreadport.c
+    mutex_extra.c
     pendsv.c
     rp2_flash.c
     rp2_pio.c
+    rp2_dma.c
     uart.c
     usbd.c
     msc_disk.c
@@ -156,6 +158,7 @@ set(MICROPY_SOURCE_QSTR
     ${MICROPY_PORT_DIR}/modos.c
     ${MICROPY_PORT_DIR}/rp2_flash.c
     ${MICROPY_PORT_DIR}/rp2_pio.c
+    ${MICROPY_PORT_DIR}/rp2_dma.c
     ${CMAKE_BINARY_DIR}/pins_${MICROPY_BOARD}.c
 )
 
@@ -471,6 +474,7 @@ target_compile_definitions(${MICROPY_TARGET} PRIVATE
     PICO_FLOAT_PROPAGATE_NANS=1
     PICO_STACK_SIZE=0x2000
     PICO_CORE1_STACK_SIZE=0
+    PICO_MAX_SHARED_IRQ_HANDLERS=8 # we need more than the default
     PICO_PROGRAM_NAME="MicroPython"
     PICO_NO_PROGRAM_VERSION_STRING=1 # do it ourselves in main.c
     MICROPY_BUILD_TYPE="${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION} ${CMAKE_BUILD_TYPE}"

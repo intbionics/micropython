@@ -1650,9 +1650,11 @@ STATIC void compile_try_except(compiler_t *comp, mp_parse_node_t pn_body, int n_
         if (qstr_exception_local != 0) {
             EMIT_ARG(load_const_tok, MP_TOKEN_KW_NONE);
             EMIT_ARG(label_assign, l3);
+            EMIT_ARG(adjust_stack_size, 1); // stack adjust for possible return value
             EMIT_ARG(load_const_tok, MP_TOKEN_KW_NONE);
             compile_store_id(comp, qstr_exception_local);
             compile_delete_id(comp, qstr_exception_local);
+            EMIT_ARG(adjust_stack_size, -1);
             compile_decrease_except_level(comp);
         }
 
@@ -1682,9 +1684,18 @@ STATIC void compile_try_finally(compiler_t *comp, mp_parse_node_t pn_body, int n
     } else {
         compile_try_except(comp, pn_body, n_except, pn_except, pn_else);
     }
+
+    // If the code reaches this point then the try part of the try-finally exited normally.
+    // This is indicated to the runtime by None sitting on the stack.
     EMIT_ARG(load_const_tok, MP_TOKEN_KW_NONE);
+
+    // Compile the finally block.
+    // The stack needs to be adjusted by 1 to account for the possibility that the finally is
+    // being executed as part of a return, and the return value is on the top of the stack.
     EMIT_ARG(label_assign, l_finally_block);
+    EMIT_ARG(adjust_stack_size, 1);
     compile_node(comp, pn_finally);
+    EMIT_ARG(adjust_stack_size, -1);
 
     compile_decrease_except_level(comp);
 }
@@ -3614,7 +3625,7 @@ void mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_file, bool 
             for (scope_t *s = comp->scope_head; s != NULL; s = s->next) {
                 mp_raw_code_t *rc = s->raw_code;
                 if (rc->kind == MP_CODE_BYTECODE) {
-                    mp_bytecode_print(&mp_plat_print, rc, &cm->context->constants);
+                    mp_bytecode_print(&mp_plat_print, rc, s->raw_code_data_len, &cm->context->constants);
                 }
             }
         }
@@ -3656,7 +3667,7 @@ mp_obj_t mp_compile(mp_parse_tree_t *parse_tree, qstr source_file, bool is_repl)
     cm.context->module.globals = mp_globals_get();
     mp_compile_to_raw_code(parse_tree, source_file, is_repl, &cm);
     // return function that executes the outer module
-    return mp_make_function_from_raw_code(cm.rc, cm.context, NULL);
+    return mp_make_function_from_proto_fun(cm.rc, cm.context, NULL);
 }
 
 #endif // MICROPY_ENABLE_COMPILER

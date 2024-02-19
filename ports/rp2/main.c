@@ -38,7 +38,7 @@
 #include "shared/runtime/gchelper.h"
 #include "shared/runtime/pyexec.h"
 #include "shared/runtime/softtimer.h"
-#include "tusb.h"
+#include "shared/tinyusb/mp_usbd.h"
 #include "uart.h"
 #include "modmachine.h"
 #include "modrp2.h"
@@ -86,11 +86,8 @@ int main(int argc, char **argv) {
     #endif
     #endif
 
-    #if MICROPY_HW_ENABLE_USBDEV
-    #if MICROPY_HW_USB_CDC
+    #if MICROPY_HW_ENABLE_USBDEV && MICROPY_HW_USB_CDC
     bi_decl(bi_program_feature("USB REPL"))
-    #endif
-    tusb_init();
     #endif
 
     #if MICROPY_PY_THREAD
@@ -159,6 +156,7 @@ int main(int argc, char **argv) {
         readline_init0();
         machine_pin_init();
         rp2_pio_init();
+        rp2_dma_init();
         machine_i2s_init0();
 
         #if MICROPY_PY_BLUETOOTH
@@ -180,6 +178,11 @@ int main(int argc, char **argv) {
 
         // Execute user scripts.
         int ret = pyexec_file_if_exists("boot.py");
+
+        #if MICROPY_HW_ENABLE_USBDEV
+        mp_usbd_init();
+        #endif
+
         if (ret & PYEXEC_FORCED_EXIT) {
             goto soft_reset_exit;
         }
@@ -207,6 +210,7 @@ int main(int argc, char **argv) {
         #if MICROPY_PY_NETWORK
         mod_network_deinit();
         #endif
+        rp2_dma_deinit();
         rp2_pio_deinit();
         #if MICROPY_PY_BLUETOOTH
         mp_bluetooth_deinit();
