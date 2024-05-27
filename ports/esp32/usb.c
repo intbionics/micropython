@@ -39,7 +39,51 @@ static usb_phy_handle_t phy_hdl;
 
 
 void usb_init(void) {
+// <<<<<<< HEAD
     // ref: https://github.com/espressif/esp-usb/blob/4b6a798d0bed444fff48147c8dcdbbd038e92892/device/esp_tinyusb/tinyusb.c
+// =======
+    // Initialise the USB with defaults.
+    // tinyusb_config_t tusb_cfg = {0};
+   
+	// ssmith
+	// we want to supply a unique serial number for every device, supply a custom descriptor
+	//example: managed_components/espressif__esp_tinyusb/usb_descriptors.c
+ 
+    uint8_t chipid[6];
+    esp_efuse_mac_get_default(chipid);
+	static char serial[16]; // needs to be static for persistence
+	sprintf(serial, "%02x%02x%02x%02x%02x%02x", chipid[5], chipid[4], chipid[3], chipid[2], chipid[1], chipid[0]);
+
+    tusb_desc_strarray_device_t descriptor_str = {
+        // array of pointer to string descriptors
+        (char[]){0x09, 0x04},                // 0: is supported language is English (0x0409)
+        CONFIG_TINYUSB_DESC_MANUFACTURER_STRING, // 1: Manufacturer
+        CONFIG_TINYUSB_DESC_PRODUCT_STRING,      // 2: Product
+		serial,   // 3: Serials, should use chip ID
+		#if CONFIG_TINYUSB_CDC_ENABLED
+    		CONFIG_TINYUSB_DESC_CDC_STRING,          // 4: CDC Interface
+		#else
+    		"",
+		#endif
+
+		#if CONFIG_TINYUSB_MSC_ENABLED
+    		CONFIG_TINYUSB_DESC_MSC_STRING,          // 5: MSC Interface
+		#else
+    		"",
+		#endif
+    };
+	// sprintf(descriptor_str[3], "%02x%02x%02x%02x%02x%02x", chipid[5], chipid[4], chipid[3], chipid[2], chipid[1], chipid[0]);
+	// sprintf(descriptor_str[3], "test");
+
+    tinyusb_config_t tusb_cfg = {
+        .device_descriptor = NULL,  // Use default device descriptor specified in Menuconfig
+        .string_descriptor = descriptor_str,
+        .external_phy = false,      // Use internal USB PHY
+        .configuration_descriptor = NULL
+    };
+
+    ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
+// >>>>>>> c4ef4ad88 (re-sync with micropython master, copied over changes from old version, IB_GPS0 compiling and running)
 
     // Configure USB PHY
     usb_phy_config_t phy_conf = {

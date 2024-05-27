@@ -54,7 +54,8 @@
 
 TaskHandle_t mp_main_task_handle;
 
-static uint8_t stdin_ringbuf_array[260];
+static uint8_t stdin_ringbuf_array[5200]; //ssmith increase the size to accept large inputs
+// static uint8_t stdin_ringbuf_array[260];
 ringbuf_t stdin_ringbuf = {stdin_ringbuf_array, sizeof(stdin_ringbuf_array), 0, 0};
 
 portMUX_TYPE mp_atomic_mux = portMUX_INITIALIZER_UNLOCKED;
