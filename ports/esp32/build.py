@@ -9,10 +9,11 @@ if len(sys.argv) == 1:
     print('''
 BUILD.PY
 python build.py -p ~/upyesp32s --upy_path {} --boards IB_GPS0
-python build.py -p ~/upyesp32s --upy_path {} --boards IB_GAT0
+python build.py -p ~/upyesp32s --upy_path {} --boards IB_GTW0
+python build.py -p ~/upyesp32s --upy_path {} --boards IB_BLINGMRR
 python build.py -p ~/upyesp32s --upy_path {} --boards IB_GPS0 -c -dev -m \\"hello world\\"
 python build.py -p ~/upyesp32s --upy_path {} --boards IB_GPS0 -c -live -m \\"hello world\\"
-'''.format(upy_path, upy_path, upy_path, upy_path))
+'''.format(upy_path, upy_path, upy_path, upy_path, upy_path))
     exit()
 
 if '-p' in sys.argv:
