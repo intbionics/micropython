@@ -337,6 +337,9 @@ static mp_obj_t network_wlan_connect(size_t n_args, const mp_obj_t *pos_args, mp
 
     esp_exceptions(esp_netif_set_hostname(wlan_sta_obj.netif, mod_network_hostname_data));
 
+    // ssmith clear wifi status
+    wifi_sta_disconn_reason = 0;
+
     wifi_sta_reconnects = 0;
     // connect to the WiFi AP
     MP_THREAD_GIL_EXIT();
