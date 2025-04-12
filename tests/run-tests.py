@@ -65,7 +65,9 @@ injected_import_hook_code = """\
 import sys, os, io, vfs
 class __File(io.IOBase):
   def __init__(self):
-    sys.modules['__injected_test'].__name__ = '__main__'
+    module = sys.modules['__injected_test']
+    module.__name__ = '__main__'
+    sys.modules['__main__'] = module
     self.off = 0
   def ioctl(self, request, arg):
     if request == 4: # MP_STREAM_CLOSE
@@ -82,6 +84,8 @@ class __FS:
     pass
   def chdir(self, path):
     pass
+  def getcwd(self):
+    return ""
   def stat(self, path):
     if path == '__injected_test.mpy':
       return tuple(0 for _ in range(10))
@@ -159,6 +163,7 @@ platform_tests_to_skip = {
         "extmod/asyncio_threadsafeflag.py",
         "extmod/asyncio_wait_for_fwd.py",
         "extmod/binascii_a2b_base64.py",
+        "extmod/deflate_compress_memory_error.py",  # tries to allocate unlimited memory
         "extmod/re_stack_overflow.py",
         "extmod/time_res.py",
         "extmod/vfs_posix.py",
@@ -844,7 +849,7 @@ def run_tests(pyb, tests, args, result_dir, num_threads=1):
         test_file_abspath = os.path.abspath(test_file).replace("\\", "/")
 
         if args.filters:
-            # Default verdict is the opposit of the first action
+            # Default verdict is the opposite of the first action
             verdict = "include" if args.filters[0][0] == "exclude" else "exclude"
             for action, pat in args.filters:
                 if pat.search(test_file):
@@ -951,8 +956,8 @@ def run_tests(pyb, tests, args, result_dir, num_threads=1):
                         cwd=os.path.dirname(test_file),
                         stderr=subprocess.STDOUT,
                     )
-                except subprocess.CalledProcessError:
-                    output_expected = b"CPYTHON3 CRASH"
+                except subprocess.CalledProcessError as er:
+                    output_expected = b"CPYTHON3 CRASH:\n" + er.output
 
             # Canonical form for all host platforms is to use \n for end-of-line.
             output_expected = output_expected.replace(b"\r\n", b"\n")
@@ -992,11 +997,23 @@ def run_tests(pyb, tests, args, result_dir, num_threads=1):
             if output_expected is not None:
                 with open(filename_expected, "wb") as f:
                     f.write(output_expected)
+            else:
+                rm_f(filename_expected)  # in case left over from previous failed run
             with open(filename_mupy, "wb") as f:
                 f.write(output_mupy)
             failed_tests.append((test_name, test_file))
 
         test_count.increment()
+
+        # Print a note if this looks like it might have been a misfired unittest
+        if not uses_unittest and not test_passed:
+            with open(test_file, "r") as f:
+                if any(re.match("^import.+unittest", l) for l in f.readlines()):
+                    print(
+                        "NOTE: {} may be a unittest that doesn't run unittest.main()".format(
+                            test_file
+                        )
+                    )
 
     if pyb:
         num_threads = 1

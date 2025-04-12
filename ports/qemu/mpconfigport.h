@@ -34,8 +34,10 @@
 #define MICROPY_EMIT_ARM            (1)
 #define MICROPY_EMIT_INLINE_THUMB   (1)
 #elif defined(__ARM_ARCH_ISA_THUMB)
+#if !defined(QEMU_SOC_NRF51)
 #define MICROPY_EMIT_THUMB          (1)
 #define MICROPY_EMIT_INLINE_THUMB   (1)
+#endif
 #define MICROPY_MAKE_POINTER_CALLABLE(p) ((void *)((mp_uint_t)(p) | 1))
 #elif defined(__riscv)
 #define MICROPY_EMIT_RV32           (1)
@@ -62,6 +64,7 @@
 #define MICROPY_PY_MACHINE_PIN_BASE (1)
 #define MICROPY_VFS                 (1)
 #define MICROPY_VFS_ROM             (1)
+#define MICROPY_VFS_ROM_IOCTL       (0)
 
 // type definitions for the specific machine
 

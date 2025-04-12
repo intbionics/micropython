@@ -33,8 +33,10 @@
 #include "py/mphal.h"
 #include "py/runtime.h"
 #include "extmod/modnetwork.h"
+#include "lwip/apps/mdns.h"
 #include "pendsv.h"
 
+#define CYW43_INCLUDE_LEGACY_F1_OVERFLOW_WORKAROUND_VARIABLES (1)
 #define CYW43_WIFI_NVRAM_INCLUDE_FILE   "wifi_nvram_43439.h"
 #define CYW43_IOCTL_TIMEOUT_US          (1000000)
 #define CYW43_SLEEP_MAX                 (10)
@@ -139,10 +141,12 @@ uint cyw43_get_pin_wl(cyw43_pin_index_t pin_id);
 #endif
 
 void cyw43_post_poll_hook(void);
-extern volatile int cyw43_has_pending;
+static inline bool cyw43_poll_is_pending(void) {
+    return pendsv_is_pending(PENDSV_DISPATCH_CYW43);
+}
 
 static inline void cyw43_yield(void) {
-    if (!cyw43_has_pending) {
+    if (!cyw43_poll_is_pending()) {
         best_effort_wfe_or_timeout(make_timeout_time_ms(1));
     }
 }
@@ -164,4 +168,19 @@ static inline void cyw43_delay_ms(uint32_t ms) {
 
 #define CYW43_EVENT_POLL_HOOK mp_event_handle_nowait()
 
+#if LWIP_MDNS_RESPONDER == 1
+
+// Hook for any additional TCP/IP initialization than needs to be done.
+// Called after the netif specified by `itf` has been set up.
+#ifndef CYW43_CB_TCPIP_INIT_EXTRA
+#define CYW43_CB_TCPIP_INIT_EXTRA(self, itf) mdns_resp_add_netif(&self->netif[itf], mod_network_hostname_data)
+#endif
+
+// Hook for any additional TCP/IP deinitialization than needs to be done.
+// Called before the netif specified by `itf` is removed.
+#ifndef CYW43_CB_TCPIP_DEINIT_EXTRA
+#define CYW43_CB_TCPIP_DEINIT_EXTRA(self, itf) mdns_resp_remove_netif(&self->netif[itf])
+#endif
+
+#endif
 #endif // MICROPY_INCLUDED_RP2_CYW43_CONFIGPORT_H
