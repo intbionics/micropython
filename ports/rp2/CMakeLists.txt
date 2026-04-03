@@ -84,9 +84,6 @@ endif()
 list(APPEND GIT_SUBMODULES lib/mbedtls)
 list(APPEND GIT_SUBMODULES lib/tinyusb)
 
-# Workaround for pico-sdk host toolchain issue, see directory for details
-list(APPEND CMAKE_MODULE_PATH "${MICROPY_PORT_DIR}/tools_patch")
-
 # Include component cmake fragments
 include(${MICROPY_DIR}/py/py.cmake)
 include(${MICROPY_DIR}/extmod/extmod.cmake)
@@ -197,7 +194,6 @@ set(MICROPY_SOURCE_QSTR
     ${MICROPY_PORT_DIR}/machine_uart.c
     ${MICROPY_PORT_DIR}/machine_wdt.c
     ${MICROPY_PORT_DIR}/modrp2.c
-    ${MICROPY_PORT_DIR}/modos.c
     ${MICROPY_PORT_DIR}/rp2_flash.c
     ${MICROPY_PORT_DIR}/rp2_pio.c
     ${MICROPY_PORT_DIR}/rp2_dma.c
@@ -235,9 +231,11 @@ set(PICO_SDK_COMPONENTS
     pico_flash
     pico_multicore
     pico_platform
+    pico_platform_common
     pico_platform_compiler
     pico_platform_panic
     pico_platform_sections
+    pico_rand
     pico_runtime
     pico_runtime_init
     pico_stdio
@@ -479,6 +477,10 @@ if (MICROPY_PY_NETWORK_WIZNET5K)
     )
 endif()
 
+list(APPEND MICROPY_SOURCE_EXTMOD
+    ${MICROPY_EXTMOD_DIR}/mbedtls/mbedtls_alt.c
+)
+
 # Add qstr sources for extmod and usermod, in case they are modified by components above.
 list(APPEND MICROPY_SOURCE_QSTR
     ${MICROPY_SOURCE_EXTMOD}
@@ -487,7 +489,16 @@ list(APPEND MICROPY_SOURCE_QSTR
 )
 
 # Define mpy-cross flags
-set(MICROPY_CROSS_FLAGS -march=armv6m)
+if (${PICO_PLATFORM} STREQUAL "rp2040")
+    set(MICROPY_CROSS_FLAGS "-march=armv6m")
+elseif (${PICO_PLATFORM} STREQUAL "rp2350-arm-s")
+    set(MICROPY_CROSS_FLAGS "-march=armv7m")
+elseif (${PICO_PLATFORM} STREQUAL "rp2350-riscv")
+    set(MICROPY_CROSS_FLAGS "-march=rv32imc -march-flags=zba,zcmp")
+else()
+    message(WARNING "Unknown PICO_PLATFORM version (${PICO_PLATFORM}), falling back to rp2040")
+    set(MICROPY_CROSS_FLAGS "-march=armv6m")
+endif()
 
 # Set the frozen manifest file
 if (MICROPY_USER_FROZEN_MANIFEST)
@@ -644,12 +655,6 @@ separate_arguments(MICROPY_CPP_FLAGS_EXTRA)
 # Include the main MicroPython cmake rules.
 include(${MICROPY_DIR}/py/mkrules.cmake)
 
-set(GEN_PINS_AF_CSV "${MICROPY_PORT_DIR}/boards/rp2_af.csv")
-set(GEN_PINS_PREFIX "${MICROPY_PORT_DIR}/boards/rp2_prefix.c")
-set(GEN_PINS_MKPINS "${MICROPY_PORT_DIR}/boards/make-pins.py")
-set(GEN_PINS_SRC "${CMAKE_BINARY_DIR}/pins_${MICROPY_BOARD}.c")
-set(GEN_PINS_HDR "${MICROPY_GENHDR_DIR}/pins.h")
-
 if(NOT PICO_NUM_GPIOS)
     set(PICO_NUM_GPIOS 30)
 endif()
@@ -657,6 +662,21 @@ endif()
 if(NOT PICO_NUM_EXT_GPIOS)
     set(PICO_NUM_EXT_GPIOS 10)
 endif()
+
+if(PICO_RP2040)
+    set(GEN_PINS_AF_CSV "${MICROPY_PORT_DIR}/boards/rp2040_af.csv")
+elseif(PICO_RP2350)
+    if(PICO_NUM_GPIOS EQUAL 48)
+        set(GEN_PINS_AF_CSV "${MICROPY_PORT_DIR}/boards/rp2350b_af.csv")
+    else()
+        set(GEN_PINS_AF_CSV "${MICROPY_PORT_DIR}/boards/rp2350_af.csv")
+    endif()
+endif()
+
+set(GEN_PINS_PREFIX "${MICROPY_PORT_DIR}/boards/rp2_prefix.c")
+set(GEN_PINS_MKPINS "${MICROPY_PORT_DIR}/boards/make-pins.py")
+set(GEN_PINS_SRC "${CMAKE_BINARY_DIR}/pins_${MICROPY_BOARD}.c")
+set(GEN_PINS_HDR "${MICROPY_GENHDR_DIR}/pins.h")
 
 if(NOT MICROPY_BOARD_PINS)
     set(MICROPY_BOARD_PINS "${MICROPY_BOARD_DIR}/pins.csv")

@@ -10,7 +10,9 @@ fi
 ulimit -n 1024
 
 # Fail on some things which are warnings otherwise
-export MICROPY_MAINTAINER_BUILD=1
+if [ -z "$MICROPY_MAINTAINER_BUILD" ]; then
+    export MICROPY_MAINTAINER_BUILD=1
+fi
 
 ########################################################################################
 # general helper functions
@@ -87,7 +89,7 @@ function _ci_is_git_merge {
 function ci_code_size_build {
     # check the following ports for the change in their code size
     # Override the list by setting PORTS_TO_CHECK in the environment before invoking ci.
-    : ${PORTS_TO_CHECK:=bmusxpdv}
+    : ${PORTS_TO_CHECK:=bmus3xpdv}
     
     SUBMODULES="lib/asf4 lib/berkeley-db-1.xx lib/btstack lib/cyw43-driver lib/lwip lib/mbedtls lib/micropython-lib lib/nxp_driver lib/pico-sdk lib/stm32lib lib/tinyusb"
 
@@ -173,6 +175,15 @@ function ci_mpy_format_test {
     $micropython ./tools/mpy-tool.py -x -d examples/natmod/features1/features1.mpy
 }
 
+function ci_mpy_cross_debug_emitter {
+    make ${MAKEOPTS} -C mpy-cross
+    mpy_cross=./mpy-cross/build/mpy-cross
+
+    # Make sure the debug emitter does not crash or fail for simple files
+    $mpy_cross -X emit=native -march=debug ./tests/basics/0prelim.py | \
+	    grep -E "ENTRY|EXIT" | wc -l | grep "^2$"
+}
+
 ########################################################################################
 # ports/cc3200
 
@@ -186,18 +197,22 @@ function ci_cc3200_build {
 }
 
 ########################################################################################
+# ports/embed
+
+function ci_embedding_build {
+    make ${MAKEOPTS} -C examples/embedding -f micropython_embed.mk
+    make ${MAKEOPTS} -C examples/embedding
+    ./examples/embedding/embed | grep "hello world"
+}
+
+########################################################################################
 # ports/esp32
 
-# GitHub tag of ESP-IDF to use for CI, extracted from the esp32 dependency lockfile
-# This should end up as a tag name like vX.Y.Z
-# (note: This hacky parsing can be replaced with 'yq' once Ubuntu >=24.04 is in use)
-IDF_VER=v$(grep -A10 "idf:" ports/esp32/lockfiles/dependencies.lock.esp32 | grep "version:" | head -n1 | sed -E 's/ +version: //')
-PYTHON=$(command -v python3 2> /dev/null)
-PYTHON_VER=$(${PYTHON:-python} --version | cut -d' ' -f2)
-
-export IDF_CCACHE_ENABLE=1
-
 function ci_esp32_idf_setup {
+    if [ -z "$IDF_VER" ]; then
+        echo "IDF_VER environment variable must be set before running"
+        return 1
+    fi
     echo "Using ESP-IDF version $IDF_VER"
     git clone --depth 1 --branch $IDF_VER https://github.com/espressif/esp-idf.git
     # doing a treeless clone isn't quite as good as --shallow-submodules, but it
@@ -237,11 +252,19 @@ function ci_esp32_build_s3_c3 {
     make ${MAKEOPTS} -C ports/esp32 BOARD=ESP32_GENERIC_C3
 }
 
-function ci_esp32_build_c2_c6 {
+function ci_esp32_build_c2_c5_c6 {
     ci_esp32_build_common
 
     make ${MAKEOPTS} -C ports/esp32 BOARD=ESP32_GENERIC_C2
+    make ${MAKEOPTS} -C ports/esp32 BOARD=ESP32_GENERIC_C5
     make ${MAKEOPTS} -C ports/esp32 BOARD=ESP32_GENERIC_C6
+}
+
+function ci_esp32_build_p4 {
+    ci_esp32_build_common
+
+    make ${MAKEOPTS} -C ports/esp32 BOARD=ESP32_GENERIC_P4
+    make ${MAKEOPTS} -C ports/esp32 BOARD=ESP32_GENERIC_P4 BOARD_VARIANT=C6_WIFI
 }
 
 ########################################################################################
@@ -361,6 +384,8 @@ function ci_qemu_setup_rv64 {
     ci_gcc_riscv_setup
     sudo apt-get update
     sudo apt-get install qemu-system
+    sudo pip3 install pyelftools
+    sudo pip3 install ar
     qemu-system-riscv64 --version
 }
 
@@ -419,6 +444,10 @@ function ci_qemu_build_rv64 {
     make ${MAKEOPTS} -C mpy-cross
     make ${MAKEOPTS} -C ports/qemu BOARD=VIRT_RV64 submodules
     make ${MAKEOPTS} -C ports/qemu BOARD=VIRT_RV64 test
+
+    # Test building and running native .mpy with rv64imc architecture.
+    ci_native_mpy_modules_build rv64imc
+    make ${MAKEOPTS} -C ports/qemu BOARD=VIRT_RV64 test_natmod
 }
 
 ########################################################################################
@@ -484,13 +513,22 @@ function ci_samd_build {
 # ports/stm32
 
 function ci_stm32_setup {
-    ci_gcc_arm_setup
+    # Use a recent version of the ARM toolchain, to work with Cortex-M55.
+    wget https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi.tar.xz
+    xzcat arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi.tar.xz | tar x
+
     pip3 install pyelftools
     pip3 install ar
     pip3 install pyhy
 }
 
+function ci_stm32_path {
+    echo $(pwd)/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi/bin
+}
+
 function ci_stm32_pyb_build {
+    # This function builds the following MCU families: F4, F7.
+
     make ${MAKEOPTS} -C mpy-cross
     make ${MAKEOPTS} -C ports/stm32 MICROPY_PY_NETWORK_WIZNET5K=5200 submodules
     make ${MAKEOPTS} -C ports/stm32 BOARD=PYBD_SF2 submodules
@@ -505,6 +543,8 @@ function ci_stm32_pyb_build {
 }
 
 function ci_stm32_nucleo_build {
+    # This function builds the following MCU families: F0, H5, H7, L0, L4, WB.
+
     make ${MAKEOPTS} -C mpy-cross
     make ${MAKEOPTS} -C ports/stm32 BOARD=NUCLEO_H743ZI submodules
     git submodule update --init lib/mynewt-nimble
@@ -531,9 +571,17 @@ function ci_stm32_nucleo_build {
 }
 
 function ci_stm32_misc_build {
+    # This function builds the following MCU families: G0, G4, H7, L1, N6, U5, WL.
+
     make ${MAKEOPTS} -C mpy-cross
     make ${MAKEOPTS} -C ports/stm32 BOARD=ARDUINO_GIGA submodules
     make ${MAKEOPTS} -C ports/stm32 BOARD=ARDUINO_GIGA
+    make ${MAKEOPTS} -C ports/stm32 BOARD=NUCLEO_G0B1RE
+    make ${MAKEOPTS} -C ports/stm32 BOARD=NUCLEO_G474RE
+    make ${MAKEOPTS} -C ports/stm32 BOARD=NUCLEO_L152RE
+    make ${MAKEOPTS} -C ports/stm32 BOARD=NUCLEO_N657X0
+    make ${MAKEOPTS} -C ports/stm32 BOARD=NUCLEO_U5A5ZJ_Q
+    make ${MAKEOPTS} -C ports/stm32 BOARD=NUCLEO_WL55
 }
 
 ########################################################################################
@@ -633,9 +681,9 @@ function ci_native_mpy_modules_build {
         make -C examples/natmod/$natmod ARCH=$arch
     done
 
-    # features2 requires soft-float on rv32imc and xtensa.
+    # features2 requires soft-float on rv32imc, rv64imc, and xtensa.
     make -C examples/natmod/features2 ARCH=$arch clean
-    if [ $arch = "rv32imc" ] || [ $arch = "xtensa" ]; then
+    if [ $arch = "rv32imc" ] || [ $arch = "rv64imc" ] || [ $arch = "xtensa" ]; then
         make -C examples/natmod/features2 ARCH=$arch MICROPY_FLOAT_IMPL=float
     else
         make -C examples/natmod/features2 ARCH=$arch
@@ -722,9 +770,8 @@ function ci_unix_32bit_setup {
     sudo dpkg --add-architecture i386
     sudo apt-get update
     sudo apt-get install gcc-multilib g++-multilib libffi-dev:i386
-    sudo pip3 install setuptools
-    sudo pip3 install pyelftools
-    sudo pip3 install ar
+    python -m pip install pyelftools
+    python -m pip install ar
     gcc --version
     python3 --version
 }
@@ -851,18 +898,16 @@ function ci_unix_macos_run_tests {
     # Issues with macOS tests:
     # - float_parse and float_parse_doubleprec parse/print floats out by a few mantissa bits
     # - ffi_callback crashes for an unknown reason
-    # - thread/stress_heap.py is flaky
-    # - thread/thread_gc1.py is flaky
-    (cd tests && MICROPY_MICROPYTHON=../ports/unix/build-standard/micropython ./run-tests.py --exclude '(float_parse|float_parse_doubleprec|ffi_callback|thread/stress_heap|thread/thread_gc1).py')
+    (cd tests && MICROPY_MICROPYTHON=../ports/unix/build-standard/micropython ./run-tests.py --exclude '(float_parse|float_parse_doubleprec|ffi_callback).py')
 }
 
 function ci_unix_qemu_mips_setup {
     sudo apt-get update
-    sudo apt-get install gcc-mips-linux-gnu g++-mips-linux-gnu libc6-mips-cross
-    sudo apt-get install qemu-user
-    qemu-mips --version
-    sudo mkdir /etc/qemu-binfmt
-    sudo ln -s /usr/mips-linux-gnu/ /etc/qemu-binfmt/mips
+    sudo apt-get install gcc-mips-linux-gnu g++-mips-linux-gnu libc6-mips-cross libltdl-dev
+    sudo apt-get install qemu-user-static
+    qemu-mips-static --version
+    sudo mkdir -p /usr/gnemul
+    sudo ln -s /usr/mips-linux-gnu /usr/gnemul/qemu-mips
 }
 
 function ci_unix_qemu_mips_build {
@@ -872,20 +917,18 @@ function ci_unix_qemu_mips_build {
 
 function ci_unix_qemu_mips_run_tests {
     # Issues with MIPS tests:
-    # - thread/stress_aes.py takes around 50 seconds
-    # - thread/stress_recurse.py is flaky
-    # - thread/thread_gc1.py is flaky
+    # - thread/stress_aes.py takes around 90 seconds
     file ./ports/unix/build-coverage/micropython
-    (cd tests && MICROPY_MICROPYTHON=../ports/unix/build-coverage/micropython MICROPY_TEST_TIMEOUT=90 ./run-tests.py --exclude 'thread/stress_recurse.py|thread/thread_gc1.py')
+    (cd tests && MICROPY_MICROPYTHON=../ports/unix/build-coverage/micropython MICROPY_TEST_TIMEOUT=180 ./run-tests.py)
 }
 
 function ci_unix_qemu_arm_setup {
     sudo apt-get update
-    sudo apt-get install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
-    sudo apt-get install qemu-user
-    qemu-arm --version
-    sudo mkdir /etc/qemu-binfmt
-    sudo ln -s /usr/arm-linux-gnueabi/ /etc/qemu-binfmt/arm
+    sudo apt-get install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi libltdl-dev
+    sudo apt-get install qemu-user-static
+    qemu-arm-static --version
+    sudo mkdir -p /usr/gnemul
+    sudo ln -s /usr/arm-linux-gnueabi /usr/gnemul/qemu-arm
 }
 
 function ci_unix_qemu_arm_build {
@@ -895,35 +938,37 @@ function ci_unix_qemu_arm_build {
 
 function ci_unix_qemu_arm_run_tests {
     # Issues with ARM tests:
-    # - (i)listdir does not work, it always returns the empty list (it's an issue with the underlying C call)
-    # - thread/stress_aes.py takes around 70 seconds
-    # - thread/stress_recurse.py is flaky
-    # - thread/thread_gc1.py is flaky
+    # - thread/stress_aes.py takes around 90 seconds
     file ./ports/unix/build-coverage/micropython
-    (cd tests && MICROPY_MICROPYTHON=../ports/unix/build-coverage/micropython MICROPY_TEST_TIMEOUT=90 ./run-tests.py --exclude 'vfs_posix.*\.py|thread/stress_recurse.py|thread/thread_gc1.py')
+    (cd tests && MICROPY_MICROPYTHON=../ports/unix/build-coverage/micropython MICROPY_TEST_TIMEOUT=120 ./run-tests.py)
 }
 
 function ci_unix_qemu_riscv64_setup {
+    ci_gcc_riscv_setup
     sudo apt-get update
-    sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
-    sudo apt-get install qemu-user
-    qemu-riscv64 --version
-    sudo mkdir /etc/qemu-binfmt
-    sudo ln -s /usr/riscv64-linux-gnu/ /etc/qemu-binfmt/riscv64
+    sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu libltdl-dev
+    python3 -m pip install pyelftools
+    python3 -m pip install ar
+    sudo apt-get install qemu-user-static
+    qemu-riscv64-static --version
+    sudo mkdir -p /usr/gnemul
+    sudo ln -s /usr/riscv64-linux-gnu /usr/gnemul/qemu-riscv64
 }
 
 function ci_unix_qemu_riscv64_build {
     ci_unix_build_helper "${CI_UNIX_OPTS_QEMU_RISCV64[@]}"
     ci_unix_build_ffi_lib_helper riscv64-linux-gnu-gcc
+    ci_native_mpy_modules_build rv64imc
 }
 
 function ci_unix_qemu_riscv64_run_tests {
     # Issues with RISCV-64 tests:
-    # - thread/stress_aes.py takes around 140 seconds
-    # - thread/stress_recurse.py is flaky
-    # - thread/thread_gc1.py is flaky
+    # - thread/stress_aes.py takes around 180 seconds, so exclude it to keep execution time down
     file ./ports/unix/build-coverage/micropython
-    (cd tests && MICROPY_MICROPYTHON=../ports/unix/build-coverage/micropython MICROPY_TEST_TIMEOUT=180 ./run-tests.py --exclude 'thread/stress_recurse.py|thread/thread_gc1.py')
+    pushd tests
+    MICROPY_MICROPYTHON=../ports/unix/build-coverage/micropython ./run-tests.py --exclude 'thread/stress_aes.py'
+    MICROPY_MICROPYTHON=../ports/unix/build-coverage/micropython ./run-natmodtests.py extmod/btree*.py extmod/deflate*.py extmod/framebuf*.py extmod/heapq*.py extmod/random_basic*.py extmod/re*.py
+    popd
 }
 
 function ci_unix_repr_b_build {
@@ -1048,6 +1093,14 @@ function _ci_bash_completion {
     echo "alias ci=\"$(readlink -f "$0")\"; complete -W '$(grep '^function ci_' $0 | awk '{print $2}' | sed 's/^ci_//')' ci"
 }
 
+function _ci_zsh_completion {
+    echo "alias ci=\"$(readlink -f "$0"\"); _complete_mpy_ci_zsh() { compadd $(grep '^function ci_' $0 | awk '{sub(/^ci_/,"",$2); print $2}' | tr '\n' ' ') }; autoload -Uz compinit; compinit; compdef _complete_mpy_ci_zsh $(readlink -f "$0")"
+}
+
+function _ci_fish_completion {
+    echo "alias ci=\"$(readlink -f "$0"\"); complete -c ci -p $(readlink -f "$0") -f -a '$(grep '^function ci_' $(readlink -f "$0") | awk '{sub(/^ci_/,"",$2); print $2}' | tr '\n' ' ')'"
+}
+
 function _ci_main {
     case "$1" in
         (-h|-?|--help)
@@ -1055,6 +1108,12 @@ function _ci_main {
         ;;
         (--bash-completion)
             _ci_bash_completion
+        ;;
+        (--zsh-completion)
+            _ci_zsh_completion
+        ;;
+        (--fish-completion)
+            _ci_fish_completion
         ;;
         (-*)
             echo "Unknown option: $1" 1>&2

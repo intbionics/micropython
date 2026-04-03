@@ -196,7 +196,7 @@ static mp_obj_t esp32_wake_on_gpio(size_t n_args, const mp_obj_t *pos_args, mp_m
 }
 static MP_DEFINE_CONST_FUN_OBJ_KW(esp32_wake_on_gpio_obj, 0, esp32_wake_on_gpio);
 
-#if !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
+#if SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP && !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
 static mp_obj_t esp32_gpio_deep_sleep_hold(const mp_obj_t enable) {
     if (mp_obj_is_true(enable)) {
         gpio_deep_sleep_hold_en();
@@ -331,7 +331,7 @@ static const mp_rom_map_elem_t esp32_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_wake_on_ulp), MP_ROM_PTR(&esp32_wake_on_ulp_obj) },
     #endif
     { MP_ROM_QSTR(MP_QSTR_wake_on_gpio), MP_ROM_PTR(&esp32_wake_on_gpio_obj) },
-    #if !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
+    #if SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP && !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
     { MP_ROM_QSTR(MP_QSTR_gpio_deep_sleep_hold), MP_ROM_PTR(&esp32_gpio_deep_sleep_hold_obj) },
     #endif
     #if CONFIG_IDF_TARGET_ESP32
@@ -354,6 +354,9 @@ static const mp_rom_map_elem_t esp32_module_globals_table[] = {
     #endif
     #if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
     { MP_ROM_QSTR(MP_QSTR_ULP), MP_ROM_PTR(&esp32_ulp_type) },
+    #endif
+    #if SOC_GP_LDO_SUPPORTED
+    { MP_ROM_QSTR(MP_QSTR_LDO), MP_ROM_PTR(&esp32_ldo_type) },
     #endif
 
     { MP_ROM_QSTR(MP_QSTR_WAKEUP_ALL_LOW), MP_ROM_FALSE },

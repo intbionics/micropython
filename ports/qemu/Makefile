@@ -153,7 +153,8 @@ endif
 ################################################################################
 # Project specific settings and compiler/linker flags
 
-QEMU_SYSTEM = qemu-system-$(QEMU_ARCH)
+QEMU_BASE ?= qemu-system-
+QEMU_SYSTEM = $(QEMU_BASE)$(QEMU_ARCH)
 QEMU_ARGS += -machine $(QEMU_MACHINE) -nographic -monitor null -semihosting
 QEMU_ARGS += $(QEMU_EXTRA)
 
@@ -162,6 +163,9 @@ ifeq ($(QEMU_DEBUG),1)
 QEMU_DEBUG_ARGS ?= -s
 QEMU_ARGS += -S $(QEMU_DEBUG_ARGS) $(QEMU_DEBUG_EXTRA)
 endif
+
+# Allow selecting a subset of natmods to test.
+TEST_NATMODS ?= btree deflate framebuf heapq random_basic re
 
 INC += -I.
 INC += -I$(TOP)
@@ -264,7 +268,7 @@ test_full: $(BUILD)/firmware.elf
 test_natmod: $(BUILD)/firmware.elf
 	$(eval DIRNAME=ports/$(notdir $(CURDIR)))
 	cd $(TOP)/tests && \
-		for natmod in btree deflate framebuf heapq random_basic re; do \
+		for natmod in $(TEST_NATMODS); do \
 		./run-natmodtests.py -t execpty:"$(QEMU_SYSTEM) $(QEMU_ARGS) -serial pty -kernel ../$(DIRNAME)/$<" $(RUN_TESTS_EXTRA) extmod/$$natmod*.py; \
 		done
 

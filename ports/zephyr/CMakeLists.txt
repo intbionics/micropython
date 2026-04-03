@@ -35,6 +35,27 @@ string(TOUPPER          ZEPHYR_${BOARD} MICROPY_BOARD)
 include(${MICROPY_DIR}/py/py.cmake)
 include(${MICROPY_DIR}/extmod/extmod.cmake)
 
+list(APPEND DTS_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/dts)
+
+# Define mpy-cross flags, for use with frozen code.
+if(CONFIG_RISCV_ISA_RV32I AND CONFIG_RISCV_ISA_EXT_M AND CONFIG_RISCV_ISA_EXT_C)
+    set(ARCH_FLAGS "")
+    set(RV32_EXT "")
+    if(CONFIG_RISCV_ISA_EXT_ZBA)
+        list(APPEND RV32_EXT "zba")
+    endif()
+    if(CONFIG_RISCV_ISA_EXT_ZCMP)
+        list(APPEND RV32_EXT "zcmp")
+    endif()
+    if(RV32_EXT)
+        list(JOIN RV32_EXT "," RV32_EXT)
+        set(ARCH_FLAGS "-march-flags=${RV32_EXT}")
+    endif()
+    set(MICROPY_CROSS_FLAGS "-march=rv32imc ${ARCH_FLAGS}")
+elseif(CONFIG_RISCV_ISA_RV64I AND CONFIG_RISCV_ISA_EXT_M AND CONFIG_RISCV_ISA_EXT_C)
+    set(MICROPY_CROSS_FLAGS -march=rv64imc)
+endif()
+
 if (CONFIG_MICROPY_FROZEN_MODULES)
     cmake_path(ABSOLUTE_PATH CONFIG_MICROPY_FROZEN_MANIFEST BASE_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
     set(MICROPY_FROZEN_MANIFEST ${CONFIG_MICROPY_FROZEN_MANIFEST})
@@ -55,6 +76,7 @@ set(MICROPY_SOURCE_PORT
     uart_core.c
     zephyr_device.c
     zephyr_storage.c
+    zephyr_filesystem.c
     mpthreadport.c
 )
 list(TRANSFORM MICROPY_SOURCE_PORT PREPEND ${MICROPY_PORT_DIR}/)
@@ -81,14 +103,33 @@ set(MICROPY_QSTRDEFS_PORT
     ${MICROPY_PORT_DIR}/qstrdefsport.h
 )
 
-set(MICROPY_SOURCE_LIB
+if (CONFIG_MICROPY_VFS_FAT)
+
+list(APPEND MICROPY_SOURCE_LIB
     oofatfs/ff.c
     oofatfs/ffunicode.c
+)
+
+endif()
+
+if (CONFIG_MICROPY_VFS_LFS1)
+
+list(APPEND MICROPY_SOURCE_LIB
     littlefs/lfs1.c
     littlefs/lfs1_util.c
+)
+
+endif()
+
+if (CONFIG_MICROPY_VFS_LFS2)
+
+list(APPEND MICROPY_SOURCE_LIB
     littlefs/lfs2.c
     littlefs/lfs2_util.c
 )
+
+endif()
+
 list(TRANSFORM MICROPY_SOURCE_LIB PREPEND ${MICROPY_DIR}/lib/)
 
 set(MICROPY_SOURCE_QSTR

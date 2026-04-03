@@ -301,6 +301,8 @@ void DebugMon_Handler(void) {
 /*  file (startup_stm32f4xx.s).                                               */
 /******************************************************************************/
 
+#if MICROPY_HW_STM_USB_STACK || MICROPY_HW_TINYUSB_STACK
+
 #if defined(STM32G0)
 
 #if MICROPY_HW_USB_FS
@@ -468,7 +470,7 @@ void OTG_FS_WKUP_IRQHandler(void) {
 
     #if defined(STM32L4)
     EXTI->PR1 = USB_OTG_FS_WAKEUP_EXTI_LINE;
-    #elif !defined(STM32H5) && !defined(STM32H7)
+    #elif !defined(STM32H5) && !defined(STM32H7) && !defined(STM32U5)
     /* Clear EXTI pending Bit*/
     __HAL_USB_FS_EXTI_CLEAR_FLAG();
     #endif
@@ -498,6 +500,8 @@ void OTG_HS_WKUP_IRQHandler(void) {
 #endif
 
 #endif // !defined(STM32L0)
+
+#endif // MICROPY_HW_STM_USB_STACK || MICROPY_HW_TINYUSB_STACK
 
 /**
   * @brief  This function handles PPP interrupt request.

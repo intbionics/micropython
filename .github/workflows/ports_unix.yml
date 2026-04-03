@@ -23,7 +23,7 @@ jobs:
   minimal:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Build
       run: tools/ci.sh unix_minimal_build
     - name: Run main test suite
@@ -35,7 +35,7 @@ jobs:
   reproducible:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Build with reproducible date
       run: tools/ci.sh unix_minimal_build
       env:
@@ -46,7 +46,7 @@ jobs:
   standard:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Build
       run: tools/ci.sh unix_standard_build
     - name: Run main test suite
@@ -58,7 +58,7 @@ jobs:
   standard_v2:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Build
       run: tools/ci.sh unix_standard_v2_build
     - name: Run main test suite
@@ -70,7 +70,7 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: actions/setup-python@v6
       # Python 3.12 is the default for ubuntu-24.04, but that has compatibility issues with settrace tests.
       # Can remove this step when ubuntu-latest uses a more recent Python 3.x as the default.
@@ -103,9 +103,14 @@ jobs:
       run: tests/run-tests.py --print-failures
 
   coverage_32bit:
-    runs-on: ubuntu-22.04 # use 22.04 to get libffi-dev:i386
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      # Python 3.12 is the default for ubuntu-24.04, but that has compatibility issues with settrace tests.
+      # Can remove this step when ubuntu-latest uses a more recent Python 3.x as the default.
+      with:
+        python-version: '3.11'
     - name: Install packages
       run: tools/ci.sh unix_32bit_setup
     - name: Build
@@ -121,9 +126,14 @@ jobs:
       run: tests/run-tests.py --print-failures
 
   nanbox:
-    runs-on: ubuntu-22.04 # use 22.04 to get libffi-dev:i386
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      # Python 3.12 is the default for ubuntu-24.04, but that has compatibility issues with settrace tests.
+      # Can remove this step when ubuntu-latest uses a more recent Python 3.x as the default.
+      with:
+        python-version: '3.11'
     - name: Install packages
       run: tools/ci.sh unix_32bit_setup
     - name: Build
@@ -135,9 +145,14 @@ jobs:
       run: tests/run-tests.py --print-failures
 
   longlong:
-    runs-on: ubuntu-22.04 # use 22.04 to get libffi-dev:i386
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      # Python 3.12 is the default for ubuntu-24.04, but that has compatibility issues with settrace tests.
+      # Can remove this step when ubuntu-latest uses a more recent Python 3.x as the default.
+      with:
+        python-version: '3.11'
     - name: Install packages
       run: tools/ci.sh unix_32bit_setup
     - name: Build
@@ -151,7 +166,7 @@ jobs:
   float:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Build
       run: tools/ci.sh unix_float_build
     - name: Run main test suite
@@ -163,7 +178,7 @@ jobs:
   gil_enabled:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Build
       run: tools/ci.sh unix_gil_enabled_build
     - name: Run main test suite
@@ -175,7 +190,7 @@ jobs:
   stackless_clang:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Install packages
       run: tools/ci.sh unix_clang_setup
     - name: Build
@@ -189,7 +204,7 @@ jobs:
   float_clang:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Install packages
       run: tools/ci.sh unix_clang_setup
     - name: Build
@@ -203,7 +218,7 @@ jobs:
   settrace_stackless:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: actions/setup-python@v6
       # Python 3.12 is the default for ubuntu-24.04, but that has compatibility issues with settrace tests.
       # Can remove this step when ubuntu-latest uses a more recent Python 3.x as the default.
@@ -218,9 +233,14 @@ jobs:
       run: tests/run-tests.py --print-failures
 
   repr_b:
-    runs-on: ubuntu-22.04 # use 22.04 to get libffi-dev:i386
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      # Python 3.12 is the default for ubuntu-24.04, but that has compatibility issues with settrace tests.
+      # Can remove this step when ubuntu-latest uses a more recent Python 3.x as the default.
+      with:
+        python-version: '3.11'
     - name: Install packages
       run: tools/ci.sh unix_32bit_setup
     - name: Build
@@ -234,7 +254,7 @@ jobs:
   macos:
     runs-on: macos-26
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: actions/setup-python@v6
       with:
         python-version: '3.8'
@@ -247,10 +267,14 @@ jobs:
       run: tests/run-tests.py --print-failures
 
   qemu_mips:
-    # ubuntu-22.04 is needed for older libffi.
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      # Python 3.12 is the default for ubuntu-24.04, but that has compatibility issues with settrace tests.
+      # Can remove this step when ubuntu-latest uses a more recent Python 3.x as the default.
+      with:
+        python-version: '3.11'
     - name: Install packages
       run: tools/ci.sh unix_qemu_mips_setup
     - name: Build
@@ -262,10 +286,14 @@ jobs:
       run: tests/run-tests.py --print-failures
 
   qemu_arm:
-    # ubuntu-22.04 is needed for older libffi.
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      # Python 3.12 is the default for ubuntu-24.04, but that has compatibility issues with settrace tests.
+      # Can remove this step when ubuntu-latest uses a more recent Python 3.x as the default.
+      with:
+        python-version: '3.11'
     - name: Install packages
       run: tools/ci.sh unix_qemu_arm_setup
     - name: Build
@@ -277,10 +305,14 @@ jobs:
       run: tests/run-tests.py --print-failures
 
   qemu_riscv64:
-    # ubuntu-22.04 is needed for older libffi.
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      # Python 3.12 is the default for ubuntu-24.04, but that has compatibility issues with settrace tests.
+      # Can remove this step when ubuntu-latest uses a more recent Python 3.x as the default.
+      with:
+        python-version: '3.11'
     - name: Install packages
       run: tools/ci.sh unix_qemu_riscv64_setup
     - name: Build
@@ -294,7 +326,7 @@ jobs:
   sanitize_address:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: actions/setup-python@v6
       # Python 3.12 is the default for ubuntu-24.04, but that has compatibility issues with settrace tests.
       # Can remove this step when ubuntu-latest uses a more recent Python 3.x as the default.
@@ -319,7 +351,7 @@ jobs:
   sanitize_undefined:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: actions/setup-python@v6
       # Python 3.12 is the default for ubuntu-24.04, but that has compatibility issues with settrace tests.
       # Can remove this step when ubuntu-latest uses a more recent Python 3.x as the default.

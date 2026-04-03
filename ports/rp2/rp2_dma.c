@@ -427,13 +427,23 @@ static mp_obj_t rp2_dma_close(mp_obj_t self_in) {
     uint8_t channel = self->channel;
 
     if (channel != CHANNEL_CLOSED) {
+        // Disable channel IRQ
+        dma_channel_set_irq0_enabled(channel, false);
+
+        // Reset this channel's registers to their default values (zeros).
+        dma_channel_config config = { .ctrl = 0 };
+        dma_channel_configure(channel, &config, NULL, NULL, 0, false);
+
+        // Abort this channel. Must be done after clearing EN bit in control
+        // register due to errata RP2350-E5.
+        dma_channel_abort(channel);
+
         // Clean up interrupt handler to ensure garbage collection
         mp_irq_obj_t *irq = MP_STATE_PORT(rp2_dma_irq_obj[channel]);
         MP_STATE_PORT(rp2_dma_irq_obj[channel]) = MP_OBJ_NULL;
         if (irq) {
             irq->parent = MP_OBJ_NULL;
             irq->handler = MP_OBJ_NULL;
-            dma_channel_set_irq0_enabled(channel, false);
         }
         dma_channel_unclaim(channel);
         self->channel = CHANNEL_CLOSED;
@@ -471,7 +481,8 @@ void rp2_dma_init(void) {
 }
 
 void rp2_dma_deinit(void) {
-    // Remove our interrupt handler.
+    // Disable and remove our interrupt handler.
+    irq_set_enabled(DMA_IRQ_0, false);
     irq_remove_handler(DMA_IRQ_0, rp2_dma_irq_handler);
 }
 
