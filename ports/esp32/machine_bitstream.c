@@ -103,10 +103,10 @@ static bool machine_bitstream_high_low_rmt(mp_hal_pin_obj_t pin, uint32_t *timin
     uint32_t clock_div = 2;
     rmt_channel_handle_t channel = NULL;
     rmt_tx_channel_config_t tx_chan_config = {
-        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .clk_src = RMT_CLK_SRC_XTAL, // TITAN: use XTAL (40MHz) instead of APB so DFS doesn't break timing
         .gpio_num = pin,
         .mem_block_symbols = SOC_RMT_MEM_WORDS_PER_CHANNEL,
-        .resolution_hz = APB_CLK_FREQ / clock_div,
+        .resolution_hz = XTAL_CLK_FREQ / clock_div, // TITAN: match XTAL source above
         .trans_queue_depth = 1,
     };
     if (rmt_new_tx_channel(&tx_chan_config, &channel) != ESP_OK) {
@@ -115,7 +115,7 @@ static bool machine_bitstream_high_low_rmt(mp_hal_pin_obj_t pin, uint32_t *timin
     check_esp_err(rmt_enable(channel));
 
     // Get the tick rate in kHz (this will likely be 40000).
-    uint32_t counter_clk_khz = APB_CLK_FREQ / clock_div;
+    uint32_t counter_clk_khz = XTAL_CLK_FREQ / clock_div; // TITAN: match XTAL source above
     counter_clk_khz /= 1000;
 
     // Convert nanoseconds to pulse duration.
