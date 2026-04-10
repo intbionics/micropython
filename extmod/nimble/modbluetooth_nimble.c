@@ -1266,9 +1266,37 @@ int mp_bluetooth_gap_peripheral_connect(uint8_t addr_type, const uint8_t *addr, 
     };
 
     ble_addr_t addr_nimble = create_nimble_addr(addr_type, addr);
+    // TITAN: use multi_connect API when multi-conn optimization is enabled
+    #if MYNEWT_VAL(OPTIMIZE_MULTI_CONN)
+    struct ble_gap_multi_conn_params multi_params = {
+        .own_addr_type = nimble_address_mode,
+        .peer_addr = &addr_nimble,
+        .duration_ms = duration_ms,
+        .phy_1m_conn_params = &params,
+        .scheduling_len_us = 0, // 0 = no per-connection time limit
+    };
+    int err = ble_gap_multi_connect(&multi_params, &peripheral_gap_event_cb, NULL);
+    #else
     int err = ble_gap_connect(nimble_address_mode, &addr_nimble, duration_ms, &params, &peripheral_gap_event_cb, NULL);
+    #endif // TITAN: end multi-conn
     return ble_hs_err_to_errno(err);
 }
+
+// TITAN: expose multi-conn common factor API to Python layer
+#if MYNEWT_VAL(OPTIMIZE_MULTI_CONN)
+int mp_bluetooth_gap_multi_conn_configure(bool enable, uint32_t common_factor) {
+    if (!mp_bluetooth_is_active()) {
+        return ERRNO_BLUETOOTH_NOT_ACTIVE;
+    }
+    return ble_hs_err_to_errno(ble_gap_common_factor_set(enable, common_factor));
+}
+#else
+int mp_bluetooth_gap_multi_conn_configure(bool enable, uint32_t common_factor) {
+    (void)enable;
+    (void)common_factor;
+    return MP_EOPNOTSUPP;
+}
+#endif // TITAN: end multi-conn
 
 int mp_bluetooth_gap_peripheral_connect_cancel(void) {
     DEBUG_printf("mp_bluetooth_gap_peripheral_connect_cancel\n");

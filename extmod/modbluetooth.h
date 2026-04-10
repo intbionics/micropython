@@ -374,6 +374,11 @@ int mp_bluetooth_gap_peripheral_connect(uint8_t addr_type, const uint8_t *addr, 
 
 // Cancel in-progress connection to a peripheral.
 int mp_bluetooth_gap_peripheral_connect_cancel(void);
+
+// TITAN: configure multi-connection optimization (common_factor in 0.625ms units)
+int mp_bluetooth_gap_multi_conn_configure(bool enable, uint32_t common_factor);
+// TITAN: end multi-conn
+
 #endif
 
 #if MICROPY_PY_BLUETOOTH_ENABLE_GATT_CLIENT

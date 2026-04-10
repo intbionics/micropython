@@ -668,6 +668,21 @@ static mp_obj_t bluetooth_ble_gap_connect(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(bluetooth_ble_gap_connect_obj, 2, 6, bluetooth_ble_gap_connect);
 
+// TITAN: ble.gap_multi_conn_configure(enable, common_factor_us)
+// common_factor_us is the GCF of all connection intervals in microseconds.
+// Converted to 0.625ms units internally.
+static mp_obj_t bluetooth_ble_gap_multi_conn_configure(mp_obj_t self_in, mp_obj_t enable_in, mp_obj_t common_factor_us_in) {
+    (void)self_in;
+    bool enable = mp_obj_is_true(enable_in);
+    uint32_t common_factor_us = mp_obj_get_int(common_factor_us_in);
+    // Convert microseconds to 0.625ms (625us) units
+    uint32_t common_factor = common_factor_us / 625;
+    int err = mp_bluetooth_gap_multi_conn_configure(enable, common_factor);
+    return bluetooth_handle_errno(err);
+}
+static MP_DEFINE_CONST_FUN_OBJ_3(bluetooth_ble_gap_multi_conn_configure_obj, bluetooth_ble_gap_multi_conn_configure);
+// TITAN: end multi-conn
+
 static mp_obj_t bluetooth_ble_gap_scan(size_t n_args, const mp_obj_t *args) {
     // Default is indefinite scan, with the NimBLE "background scan" interval and window.
     mp_int_t duration_ms = 0;
@@ -941,6 +956,7 @@ static const mp_rom_map_elem_t bluetooth_ble_locals_dict_table[] = {
     #if MICROPY_PY_BLUETOOTH_ENABLE_CENTRAL_MODE
     { MP_ROM_QSTR(MP_QSTR_gap_connect), MP_ROM_PTR(&bluetooth_ble_gap_connect_obj) },
     { MP_ROM_QSTR(MP_QSTR_gap_scan), MP_ROM_PTR(&bluetooth_ble_gap_scan_obj) },
+    { MP_ROM_QSTR(MP_QSTR_gap_multi_conn_configure), MP_ROM_PTR(&bluetooth_ble_gap_multi_conn_configure_obj) }, // TITAN: multi-conn optimization
     #endif
     { MP_ROM_QSTR(MP_QSTR_gap_disconnect), MP_ROM_PTR(&bluetooth_ble_gap_disconnect_obj) },
     #if MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING
